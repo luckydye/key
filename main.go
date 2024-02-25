@@ -73,7 +73,7 @@ func main() {
 			// list all entries
 			for _, group := range db.Content.Root.Groups {
 				groupName := group.Name
-				fmt.Println(groupName)
+				fmt.Printf("%s (%d)\n", groupName, len(group.Entries))
 				for _, entry := range group.Entries {
 					fmt.Println("  ", entry.GetTitle())
 				}
