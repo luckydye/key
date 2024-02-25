@@ -4,22 +4,25 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
-	"github.com/tobischo/gokeepasslib"
-
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/log"
+	"github.com/spf13/cobra"
+	"github.com/tobischo/gokeepasslib"
 )
 
 func main() {
 	var cmdList = &cobra.Command{
-		Use:   "list",
-		Short: "List all entries in the database",
-		Long:  `List all entries in the database`,
-		Args:  cobra.MinimumNArgs(0),
+		Use:     "list",
+		Short:   "List all entries in the database",
+		Long:    `List all entries in the database`,
+		Args:    cobra.MinimumNArgs(0),
+		Aliases: []string{"ls"},
 		Run: func(cmd *cobra.Command, args []string) {
-			dbfile := os.Getenv("KEEPASSD")
+			dbfile := os.Getenv("KEEPASSDB")
 			keyfile := os.Getenv("KEEPASSDB_KEYFILE")
+
+			log.Info("using dbfile", "path", dbfile)
 
 			m := model{
 				textInput: passwordPrompt(),
@@ -30,20 +33,20 @@ func main() {
 
 			file, err := os.Open(dbfile)
 			if err != nil {
-				fmt.Println(err)
+				log.Error(err)
 				return
 			}
 
 			db := gokeepasslib.NewDatabase()
 			db.Credentials, err = gokeepasslib.NewPasswordAndKeyCredentials(mm.textInput.Value(), keyfile)
 			if err != nil {
-				fmt.Println(err)
+				log.Error(err)
 				return
 			}
 
 			err = gokeepasslib.NewDecoder(file).Decode(db)
 			if err != nil {
-				fmt.Println(err)
+				log.Error(err)
 				return
 			}
 
