@@ -8,7 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	logger "github.com/charmbracelet/log"
 	"github.com/spf13/cobra"
-	"github.com/tobischo/gokeepasslib"
+	"github.com/tobischo/gokeepasslib/v3"
 )
 
 var log = logger.NewWithOptions(os.Stderr, logger.Options{
