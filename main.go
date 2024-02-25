@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 
@@ -23,8 +24,6 @@ func main() {
 		Args:    cobra.MinimumNArgs(0),
 		Aliases: []string{"ls"},
 		Run: func(cmd *cobra.Command, args []string) {
-			dbfile := os.Getenv("KEEPASSDB")
-			keyfile := os.Getenv("KEEPASSDB_KEYFILE")
 
 			m := model{
 				textInput: passwordPrompt(),
@@ -33,16 +32,18 @@ func main() {
 			tm, _ := tea.NewProgram(&m, tea.WithOutput(os.Stderr)).Run()
 			mm := tm.(model)
 
-			// reader := bufio.NewReader(os.Stdin)
-			// data, _ := reader.ReadBytes(0)
-			// log.Info("stdin", "value", data)
+			// dbfile := os.Getenv("KEEPASSDB")
+			// log.Info("using dbfile", "path", dbfile)
+			// file, err := os.Open(dbfile)
+			// if err != nil {
+			// 	log.Error(err)
+			// 	return
+			// }
 
-			log.Info("using dbfile", "path", dbfile)
-			file, err := os.Open(dbfile)
-			if err != nil {
-				log.Error(err)
-				return
-			}
+			stat, _ := os.Stdin.Stat()
+			log.Info("stdin", "size", stat.Size())
+
+			file := bufio.NewReader(os.Stdin)
 
 			pw := mm.textInput.Value()
 
@@ -54,7 +55,12 @@ func main() {
 			log.Info("make credentials")
 
 			db := gokeepasslib.NewDatabase()
-			db.Credentials, err = gokeepasslib.NewPasswordAndKeyCredentials(pw, keyfile)
+
+			keyfile := os.Getenv("KEEPASSDB_KEYFILE")
+
+			creds, err := gokeepasslib.NewPasswordAndKeyCredentials(pw, keyfile)
+			db.Credentials = creds
+
 			if err != nil {
 				log.Error(err)
 				return
