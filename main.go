@@ -6,10 +6,15 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/log"
+	logger "github.com/charmbracelet/log"
 	"github.com/spf13/cobra"
 	"github.com/tobischo/gokeepasslib"
 )
+
+var log = logger.NewWithOptions(os.Stderr, logger.Options{
+	ReportCaller:    true,
+	ReportTimestamp: true,
+})
 
 func main() {
 	var cmdList = &cobra.Command{
@@ -37,6 +42,8 @@ func main() {
 				return
 			}
 
+			log.Info("make credentials")
+
 			db := gokeepasslib.NewDatabase()
 			db.Credentials, err = gokeepasslib.NewPasswordAndKeyCredentials(mm.textInput.Value(), keyfile)
 			if err != nil {
@@ -44,12 +51,14 @@ func main() {
 				return
 			}
 
+			log.Info("decode database")
 			err = gokeepasslib.NewDecoder(file).Decode(db)
 			if err != nil {
 				log.Error(err)
 				return
 			}
 
+			log.Info("unlock entries")
 			db.UnlockProtectedEntries()
 
 			entry := db.Content.Root.Groups[0].Groups[0].Entries[0]
