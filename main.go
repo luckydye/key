@@ -17,79 +17,124 @@ var log = logger.NewWithOptions(os.Stderr, logger.Options{
 	ReportTimestamp: true,
 })
 
-func main() {
-	var cmdList = &cobra.Command{
-		Use:     "list",
-		Short:   "List all entries in the database",
-		Args:    cobra.MinimumNArgs(0),
-		Aliases: []string{"ls"},
-		Run: func(cmd *cobra.Command, args []string) {
+var cmdList = &cobra.Command{
+	Use:     "list",
+	Short:   "List all entries in the database",
+	Args:    cobra.MinimumNArgs(0),
+	Aliases: []string{"ls"},
+	Run: func(cmd *cobra.Command, args []string) {
+		db := getDatabase()
+		if db == nil {
+			return
+		}
 
-			m := model{
-				textInput: passwordPrompt(),
-				err:       nil,
+		// list all entries
+		for _, group := range db.Content.Root.Groups {
+			groupName := group.Name
+			fmt.Printf("%s (%d)\n", groupName, len(group.Entries))
+			for _, entry := range group.Entries {
+				fmt.Println("  ", entry.GetTitle())
 			}
-			tm, _ := tea.NewProgram(&m, tea.WithOutput(os.Stderr)).Run()
-			mm := tm.(model)
+		}
+	},
+}
 
-			// dbfile := os.Getenv("KEEPASSDB")
-			// log.Info("using dbfile", "path", dbfile)
-			// file, err := os.Open(dbfile)
-			// if err != nil {
-			// 	log.Error(err)
-			// 	return
-			// }
+var cmdGet = &cobra.Command{
+	Use:     "get <name>",
+	Short:   "Get an entry from the database",
+	Args:    cobra.MinimumNArgs(1),
+	Aliases: []string{"g"},
+	Run: func(cmd *cobra.Command, args []string) {
+		db := getDatabase()
+		if db == nil {
+			return
+		}
 
-			stat, _ := os.Stdin.Stat()
-			log.Info("stdin", "size", stat.Size())
-
-			file := bufio.NewReader(os.Stdin)
-
-			pw := mm.textInput.Value()
-
-			if pw == "" {
-				log.Error("password is empty")
-				return
-			}
-
-			log.Info("make credentials")
-
-			db := gokeepasslib.NewDatabase()
-
-			keyfile := os.Getenv("KEEPASSDB_KEYFILE")
-
-			creds, err := gokeepasslib.NewPasswordAndKeyCredentials(pw, keyfile)
-			db.Credentials = creds
-
-			if err != nil {
-				log.Error(err)
-				return
-			}
-
-			log.Info("decode database")
-			err = gokeepasslib.NewDecoder(file).Decode(db)
-			if err != nil {
-				log.Error(err)
-				return
-			}
-
-			log.Info("unlock entries")
-			db.UnlockProtectedEntries()
-
-			// list all entries
-			for _, group := range db.Content.Root.Groups {
-				groupName := group.Name
-				fmt.Printf("%s (%d)\n", groupName, len(group.Entries))
-				for _, entry := range group.Entries {
-					fmt.Println("  ", entry.GetTitle())
+		// get entry
+		for _, group := range db.Content.Root.Groups {
+			for _, entry := range group.Entries {
+				if entry.GetTitle() == args[0] {
+					fmt.Println(entry.GetPassword())
 				}
 			}
-		},
+		}
+	},
+}
+
+func readPassword() string {
+	m := model{
+		textInput: passwordPrompt(),
+		err:       nil,
+	}
+	tm, _ := tea.NewProgram(&m, tea.WithOutput(os.Stderr)).Run()
+	mm := tm.(model)
+	return mm.textInput.Value()
+}
+
+func getDatabaseFile() *bufio.Reader {
+	stat, _ := os.Stdin.Stat()
+
+	if stat.Size() == 0 {
+		dbfile := os.Getenv("KEEPASSDB")
+		log.Debug("using dbfile", "path", dbfile)
+		file, err := os.Open(dbfile)
+		if err != nil {
+			log.Error(err)
+			return nil
+		}
+		return bufio.NewReader(file)
 	}
 
-	var rootCmd = &cobra.Command{Use: "app"}
+	return bufio.NewReader(os.Stdin)
+}
 
-	rootCmd.AddCommand(cmdList)
+func getCredentials() *gokeepasslib.DBCredentials {
+	keyfile := os.Getenv("KEEPASSDB_KEYFILE")
+
+	pw := readPassword()
+
+	if pw == "" {
+		log.Error("password is empty")
+		return nil
+	}
+
+	creds, err := gokeepasslib.NewPasswordAndKeyCredentials(pw, keyfile)
+	if err != nil {
+		log.Error(err)
+		return nil
+	}
+	return creds
+}
+
+func getDatabase() *gokeepasslib.Database {
+	file := getDatabaseFile()
+
+	log.Debug("construct credentials")
+	db := gokeepasslib.NewDatabase()
+	creds := getCredentials()
+
+	if creds == nil {
+		return nil
+	}
+
+	db.Credentials = creds
+
+	log.Debug("decode database")
+	err := gokeepasslib.NewDecoder(file).Decode(db)
+	if err != nil {
+		log.Error(err)
+		return nil
+	}
+
+	log.Debug("unlock entries")
+	db.UnlockProtectedEntries()
+
+	return db
+}
+
+func main() {
+	var rootCmd = &cobra.Command{Use: "app"}
+	rootCmd.AddCommand(cmdList, cmdGet)
 	rootCmd.Execute()
 }
 
@@ -138,8 +183,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
+	if m.err != nil {
+		return ""
+	}
+
 	return fmt.Sprintf(
-		"%s\n",
+		"%s",
 		m.textInput.View(),
 	) + "\n"
 }
