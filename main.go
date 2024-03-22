@@ -2,12 +2,16 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
+	"net/url"
 	"os"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	logger "github.com/charmbracelet/log"
+	"github.com/minio/minio-go/v7"
 	"github.com/spf13/cobra"
 	"github.com/tobischo/gokeepasslib/v3"
 )
@@ -54,7 +58,12 @@ var cmdGet = &cobra.Command{
 		for _, group := range db.Content.Root.Groups {
 			for _, entry := range group.Entries {
 				if entry.GetTitle() == args[0] {
-					fmt.Println(entry.GetPassword())
+					log.Debug("found entry", "title", entry.GetTitle())
+
+					// user := entry.GetContent("User")
+					pw := entry.GetContent("Password")
+
+					fmt.Println(pw)
 				}
 			}
 		}
@@ -71,18 +80,68 @@ func readPassword() string {
 	return mm.textInput.Value()
 }
 
+func getS3File(s3url *url.URL) (*bufio.Reader, error) {
+	endpoint := s3url.Host
+	// accessKeyID := "Q3AM3UQ867SPQQA43P2F"
+	// secretAccessKey := "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG"
+
+	// Initialize minio client object.
+	minioClient, err := minio.New(endpoint, &minio.Options{
+		// Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
+		Secure: true,
+	})
+	if err != nil {
+		log.Error(err)
+	}
+
+	slices := strings.Split(s3url.Path, "/")
+	bucket := slices[1]
+	objectPath := strings.Join(slices[2:], "/")
+
+	log.Debug("s3", "host", s3url.Host, "bucket", bucket, "path", objectPath)
+
+	object, err := minioClient.GetObject(context.Background(), bucket, objectPath, minio.GetObjectOptions{})
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+
+	// read object
+	return bufio.NewReader(object), nil
+}
+
 func getDatabaseFile() *bufio.Reader {
 	stat, _ := os.Stdin.Stat()
 
 	if stat.Size() == 0 {
-		dbfile := os.Getenv("KEEPASSDB")
-		log.Debug("using dbfile", "path", dbfile)
-		file, err := os.Open(dbfile)
+
+		dbfileUrl := os.Getenv("KEEPASSDB")
+
+		dburl, err := url.Parse(dbfileUrl)
 		if err != nil {
-			log.Error(err)
+			log.Error("invalid KEEPASSDB url")
 			return nil
 		}
-		return bufio.NewReader(file)
+
+		log.Debug("using dbfile", "url", dburl.Scheme)
+
+		switch dburl.Scheme {
+		case "s3":
+			file, err := getS3File(dburl)
+			if err != nil {
+				log.Fatal(err)
+				return nil
+			}
+			return file
+
+		case "file":
+			file, err := os.Open(dburl.Path)
+			if err != nil {
+				log.Fatal(err)
+				return nil
+			}
+			return bufio.NewReader(file)
+		}
 	}
 
 	return bufio.NewReader(os.Stdin)
@@ -90,8 +149,13 @@ func getDatabaseFile() *bufio.Reader {
 
 func getCredentials() *gokeepasslib.DBCredentials {
 	keyfile := os.Getenv("KEEPASSDB_KEYFILE")
+	pw := os.Getenv("KEEPASSDB_PASSWORD")
 
-	pw := readPassword()
+	if pw == "" {
+		pw = readPassword()
+	} else {
+		log.Debug("using password from KEEPASSDB_PASSWORD")
+	}
 
 	if pw == "" {
 		log.Error("password is empty")
@@ -133,7 +197,14 @@ func getDatabase() *gokeepasslib.Database {
 }
 
 func main() {
-	var rootCmd = &cobra.Command{Use: "app"}
+	if os.Getenv("KEY_LOG") == "debug" {
+		log.SetLevel(logger.DebugLevel)
+	}
+
+	var rootCmd = &cobra.Command{Use: "key"}
+
+	// rootCmd.PersistentFlags().StringP("password", "p", "", "provide password as plain text")
+
 	rootCmd.AddCommand(cmdList, cmdGet)
 	rootCmd.Execute()
 }
@@ -192,3 +263,5 @@ func (m model) View() string {
 		m.textInput.View(),
 	) + "\n"
 }
+
+//

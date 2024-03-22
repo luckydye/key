@@ -1,2 +1,6 @@
 [tools]
 go = "latest"
+
+[tasks.test]
+env = { "KEY_LOG" = "debug" }
+run = "go run main.go"
