@@ -1,0 +1,15 @@
+[package]
+name = "key"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.81"
+clap = { version = "4.5.3", features = ["derive"] }
+demand = "1.1.0"
+env_logger = "0.11.3"
+keepass = "0.7.7"
+log = "0.4.21"
+minio = "0.1.0"
+tokio = "1.36.0"
+url = "2.5.0"
