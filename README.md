@@ -11,7 +11,6 @@ Commands:
   help  Print this message or the help of the given subcommand(s)
 
 Options:
-  -d, --debug...
   -k, --keyfile <KEYFILE>  Provide a keyfile
   -h, --help               Print help
   -V, --version            Print version

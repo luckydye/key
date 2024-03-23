@@ -1,5 +1,6 @@
 [tools]
+rust = "1.75"
 
-[tasks.test]
-env = { "KEY_LOG" = "debug" }
-run = "cargo run"
+[tasks.dev]
+env = { "RUST_LOG" = "debug" }
+run = "cargo run --bin key"
