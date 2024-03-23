@@ -1,7 +1,10 @@
 use anyhow::Result;
 use clap::{CommandFactory, Parser, Subcommand};
 use demand::Input;
-use keepass::{db::NodeRef, Database, DatabaseKey};
+use keepass::{
+    db::{Node, NodeRef},
+    Database, DatabaseKey,
+};
 use log::debug;
 use minio::s3::{args::ObjectConditionalReadArgs, client::Client, http::BaseUrl};
 use std::{env, fs::File};
@@ -31,15 +34,16 @@ enum Commands {
     },
 }
 
-fn read_password() -> String {
-    let t = Input::new("Password for the database.")
-        .placeholder("Password")
-        .prompt("Password: ");
-
+fn read_password(title: String) -> String {
+    let t = Input::new(title).placeholder("Password").password(true);
     t.run().expect("error running input")
 }
 
-fn get_database_key(password: Option<String>, keypath: Option<String>) -> Result<DatabaseKey> {
+fn get_database_key(
+    name: String,
+    password: Option<String>,
+    keypath: Option<String>,
+) -> Result<DatabaseKey> {
     let mut key = DatabaseKey::new();
 
     if let Some(keypath) = keypath {
@@ -49,7 +53,7 @@ fn get_database_key(password: Option<String>, keypath: Option<String>) -> Result
     if let Some(password) = password {
         key = key.with_password(password.as_str())
     } else {
-        key = key.with_password(read_password().as_str());
+        key = key.with_password(read_password(format!("Password for {}", name)).as_str());
     }
 
     Ok(key)
@@ -96,7 +100,8 @@ async fn get_database(
         _ => Err(anyhow::format_err!("Unsupported schema \"{}\"", schema)),
     };
 
-    let key = get_database_key(password, keypath)?;
+    let name = dburl_parsed.path().split('/').last().unwrap().to_string();
+    let key = get_database_key(name, password, keypath)?;
 
     if let Err(e) = source {
         return Err(e);
@@ -132,7 +137,15 @@ async fn main() -> Result<()> {
             )
             .await?;
 
-            println!("{:?}", db);
+            let entries = db.root.children;
+
+            for entry in entries.iter() {
+                let entry = match entry {
+                    Node::Entry(e) => e,
+                    _ => continue,
+                };
+                println!("{}", entry.get_title().unwrap().to_string());
+            }
 
             Ok(())
         }
@@ -144,7 +157,7 @@ async fn main() -> Result<()> {
             )
             .await?;
 
-            if let Some(NodeRef::Entry(e)) = db.root.get(&["GITLAB_ACCESS_TOKEN"]) {
+            if let Some(NodeRef::Entry(e)) = db.root.get(&[name]) {
                 println!("{}", e.get_password().unwrap().to_string());
             }
 
