@@ -43,7 +43,7 @@ struct Cli {
     #[arg(short = 'k', long, env = "KEEPASSDB_KEYFILE")]
     keyfile: Option<String>,
 
-    /// Path to the keepass database file
+    /// Url to the keepass database file (supports file:// and s3:// schemas)
     #[arg(long, env = "KEEPASSDB")]
     kdbx: Option<String>,
 

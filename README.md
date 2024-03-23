@@ -13,7 +13,7 @@ Commands:
 
 Options:
   -k, --keyfile <KEYFILE>    Path to the keyfile [env: KEEPASSDB_KEYFILE]
-      --kdbx <KDBX>          Path to the keepass database file [env: KEEPASSDB]
+      --kdbx <KDBX>          Url to the keepass database file (supports file:// and s3:// schemas) [env: KEEPASSDB]
       --password <PASSWORD>  Database password [env: KEEPASSDB_PASSWORD]
   -h, --help                 Print help
   -V, --version              Print version
