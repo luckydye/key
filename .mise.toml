@@ -4,3 +4,10 @@ rust = "1.75"
 [tasks.dev]
 env = { "RUST_LOG" = "debug" }
 run = "cargo run --bin key"
+
+[tasks.build]
+run = "cargo build --bin key --release"
+
+[tasks.install]
+depends = ["build"]
+run = "cp target/release/key $HOME/bin/key"
