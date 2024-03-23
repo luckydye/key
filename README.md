@@ -12,8 +12,8 @@ Commands:
   help  Print this message or the help of the given subcommand(s)
 
 Options:
-  -k, --keyfile <KEYFILE>    Path to the keyfile [env: KEEPASSDB_KEYFILE=/Users/tihav/Documents/Private.key]
-      --kdbx <KDBX>          Path to the keepass database file [env: KEEPASSDB=file:///Users/tihav/Documents/Private.kdbx]
+  -k, --keyfile <KEYFILE>    Path to the keyfile [env: KEEPASSDB_KEYFILE]
+      --kdbx <KDBX>          Path to the keepass database file [env: KEEPASSDB]
       --password <PASSWORD>  Database password [env: KEEPASSDB_PASSWORD]
   -h, --help                 Print help
   -V, --version              Print version
