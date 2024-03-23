@@ -16,6 +16,14 @@ import (
 	"github.com/tobischo/gokeepasslib/v3"
 )
 
+var description = `Command Line Interface to a local or remote keepass database.
+
+Optional Environment Variables:
+  KEEPASSDB - url to the keepass database (examples: file:///bucket/path or s3://s3.example.com/bucket/path)
+  KEEPASSDB_KEYFILE - path to the keyfile for the keepass database
+  KEEPASSDB_PASSWORD - password for the keepass database
+`
+
 var log = logger.NewWithOptions(os.Stderr, logger.Options{
 	ReportCaller:    true,
 	ReportTimestamp: true,
@@ -61,13 +69,31 @@ var cmdGet = &cobra.Command{
 					log.Debug("found entry", "title", entry.GetTitle())
 
 					// user := entry.GetContent("User")
-					pw := entry.GetContent("Password")
+					value := entry.Get("Password")
 
-					fmt.Println(pw)
+					log.Debug(value.Value)
+
+					// fmt.Println(pw)
 				}
 			}
 		}
 	},
+}
+
+func main() {
+	if os.Getenv("KEY_LOG") == "debug" {
+		log.SetLevel(logger.DebugLevel)
+	}
+
+	var rootCmd = &cobra.Command{
+		Use:   "key",
+		Short: description,
+	}
+
+	// rootCmd.PersistentFlags().StringP("password", "p", "", "provide password as plain text")
+
+	rootCmd.AddCommand(cmdList, cmdGet)
+	rootCmd.Execute()
 }
 
 func readPassword() string {
@@ -114,16 +140,13 @@ func getDatabaseFile() *bufio.Reader {
 	stat, _ := os.Stdin.Stat()
 
 	if stat.Size() == 0 {
-
 		dbfileUrl := os.Getenv("KEEPASSDB")
-
 		dburl, err := url.Parse(dbfileUrl)
 		if err != nil {
 			log.Error("invalid KEEPASSDB url")
 			return nil
 		}
-
-		log.Debug("using dbfile", "url", dburl.Scheme)
+		log.Debug("using dbfile", "url", dburl)
 
 		switch dburl.Scheme {
 		case "s3":
@@ -146,6 +169,37 @@ func getDatabaseFile() *bufio.Reader {
 
 	return bufio.NewReader(os.Stdin)
 }
+
+// func writeDatabaseFile(db *gokeepasslib.Database) error {
+// 	dbfileUrl := os.Getenv("KEEPASSDB")
+// 	dburl, err := url.Parse(dbfileUrl)
+// 	if err != nil {
+// 		log.Error("invalid KEEPASSDB url")
+// 		return nil
+// 	}
+// 	log.Debug("writing dbfile", "url", dburl)
+
+// 	switch dburl.Scheme {
+// 	// case "s3":
+// 	// 	file, err := getS3File(dburl)
+// 	// 	if err != nil {
+// 	// 		log.Fatal(err)
+// 	// 		return nil
+// 	// 	}
+// 	// 	return file
+
+// 	case "file":
+// 		db.WriteToFile(dburl.Path)
+// 		// file, err := os.Open(dburl.Path)
+// 		// if err != nil {
+// 		// 	log.Fatal(err)
+// 		// 	return err
+// 		// }
+// 		// os.WriteFile(dburl.Path, data []byte, perm FileMode)
+// 	}
+
+// 	return errors.New("Failed to write database file")
+// }
 
 func getCredentials() *gokeepasslib.DBCredentials {
 	keyfile := os.Getenv("KEEPASSDB_KEYFILE")
@@ -194,19 +248,6 @@ func getDatabase() *gokeepasslib.Database {
 	db.UnlockProtectedEntries()
 
 	return db
-}
-
-func main() {
-	if os.Getenv("KEY_LOG") == "debug" {
-		log.SetLevel(logger.DebugLevel)
-	}
-
-	var rootCmd = &cobra.Command{Use: "key"}
-
-	// rootCmd.PersistentFlags().StringP("password", "p", "", "provide password as plain text")
-
-	rootCmd.AddCommand(cmdList, cmdGet)
-	rootCmd.Execute()
 }
 
 // read password from terminal
