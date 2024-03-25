@@ -1,5 +1,6 @@
 [package]
 name = "key"
+license = "MIT"
 version = "0.2.0"
 description = "Cli to a local or remote keepass database"
 authors = ["Tim Havlicek"]
