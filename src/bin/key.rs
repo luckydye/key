@@ -7,7 +7,11 @@ use keepass::{
 };
 use log::debug;
 use minio::s3::{args::ObjectConditionalReadArgs, client::Client, http::BaseUrl};
-use std::{env, fs::File};
+use std::{
+    env,
+    fs::File,
+    io::{Cursor, Read},
+};
 use url::Url;
 
 #[derive(Debug)]
@@ -108,16 +112,14 @@ async fn get_database(options: &CliOptions, key: &DatabaseKey) -> Result<Databas
 
     let source = match schema {
         "file" => {
-            let path = dburl_parsed.path();
-            let file = File::open(path)?;
-            Ok(file)
+            let mut file = File::open(dburl_parsed.path())?;
+            let mut buffer = Vec::new();
+            file.read_to_end(&mut buffer)?;
+            Ok(buffer)
         }
         "s3" => {
-            // let static_provider = StaticProvider::new(
-            //     "Q3AM3UQ867SPQQA43P2F",
-            //     "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-            //     None,
-            // );
+            // TODO: s3 credentials
+            // TODO: Cache file locally?
 
             let base_url: BaseUrl = dburl_parsed.host_str().unwrap().parse::<BaseUrl>()?;
             let client = Client::new(base_url, None, None, None).unwrap();
@@ -129,11 +131,13 @@ async fn get_database(options: &CliOptions, key: &DatabaseKey) -> Result<Databas
             debug!("bucket={}  object={}", bucket, object_path);
 
             let args = &ObjectConditionalReadArgs::new(bucket, object_path).unwrap();
-            let obj = client.get_object(args).await;
+            let object = client.get_object(args).await;
 
-            debug!("{:?}", obj);
+            if let Err(obj) = object {
+                return Err(anyhow::format_err!("Failed to get object from S3: {}", obj));
+            }
 
-            Err(anyhow::format_err!("S3 not supported yet"))
+            Ok(object.unwrap().bytes().await?.to_vec())
         }
         _ => Err(anyhow::format_err!("Unsupported schema \"{}\"", schema)),
     };
@@ -142,9 +146,8 @@ async fn get_database(options: &CliOptions, key: &DatabaseKey) -> Result<Databas
         return Err(e);
     }
 
-    let db = Database::open(&mut source.unwrap(), key.clone())?;
-
-    Ok(db)
+    let mut cursor = Cursor::new(source.unwrap());
+    Ok(Database::open(&mut cursor, key.clone())?)
 }
 
 async fn write_database(options: &CliOptions, db: &mut Database, key: &DatabaseKey) -> Result<()> {
