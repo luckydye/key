@@ -12,6 +12,7 @@ use minio::s3::{
     creds::StaticProvider,
     http::BaseUrl,
 };
+use serde::{Deserialize, Serialize};
 use std::{
     env,
     fs::File,
@@ -89,7 +90,11 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// List all entries of the database
-    List {},
+    List {
+        /// Output format (json, yaml, toml)
+        #[arg(short = 'o', long)]
+        output: Option<String>,
+    },
 
     /// Get a specific entry from the database
     Get {
@@ -298,18 +303,72 @@ async fn upload_to_s3(
     Ok(())
 }
 
-async fn command_list(options: &CliOptions) -> Result<()> {
+#[derive(Serialize, Deserialize, Debug)]
+struct KeyEntry {
+    title: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct KeyGroup {
+    title: String,
+    entries: Vec<KeyNode>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(tag = "type")]
+enum KeyNode {
+    #[serde(rename = "entry")]
+    Entry(KeyEntry),
+    #[serde(rename = "group")]
+    Group(KeyGroup),
+}
+
+fn parse_node_tree(node: &Node) -> KeyNode {
+    match node {
+        Node::Group(g) => {
+            let entries: Vec<KeyNode> = g.children.iter().map(parse_node_tree).collect();
+            KeyNode::Group(KeyGroup {
+                title: g.name.clone(),
+                entries,
+            })
+        }
+        Node::Entry(e) => KeyNode::Entry(KeyEntry {
+            title: e.get_title().unwrap().to_string(),
+        }),
+    }
+}
+
+async fn command_list(options: &CliOptions, format: &str) -> Result<()> {
     let key = get_database_key(&options)?;
     let db = get_database(&options, &key).await?;
 
     let entries = db.root.children;
 
-    for entry in entries.iter() {
-        let entry = match entry {
-            Node::Entry(e) => e,
-            _ => continue,
-        };
-        println!("{}", entry.get_title().unwrap().to_string());
+    match format {
+        "json" => {
+            let nodes: Vec<KeyNode> = entries.iter().map(|n| parse_node_tree(n)).collect();
+            println!("{}", serde_json::to_string(&nodes)?);
+        }
+        _ => {
+            for entry in entries.iter() {
+                match entry {
+                    Node::Group(g) => {
+                        println!("{}", g.name);
+                        for child in g.children.iter() {
+                            match child {
+                                Node::Entry(e) => {
+                                    println!("  {}", e.get_title().unwrap().to_string());
+                                }
+                                _ => continue,
+                            }
+                        }
+                    }
+                    Node::Entry(e) => {
+                        println!("{}", e.get_title().unwrap().to_string());
+                    }
+                };
+            }
+        }
     }
 
     Ok(())
@@ -383,7 +442,9 @@ async fn main() -> Result<()> {
     debug!("options {:?}", options);
 
     match &cli.command {
-        Some(Commands::List {}) => command_list(&options).await,
+        Some(Commands::List { output }) => {
+            command_list(&options, output.as_deref().unwrap_or("text")).await
+        }
         Some(Commands::Get { name, field }) => command_get(&options, name, field).await,
         Some(Commands::Set { name, value, field }) => {
             command_set(&options, name, value, field).await
