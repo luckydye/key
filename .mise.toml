@@ -1,6 +1,9 @@
 [tools]
 rust = "1.75"
 
+[env]
+_.file = '.env'
+
 [tasks.dev]
 env = { "RUST_LOG" = "debug" }
 run = "cargo run --bin key"
