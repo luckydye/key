@@ -416,11 +416,10 @@ async fn command_list(options: &CliOptions, format: &str) -> Result<()> {
       for entry in entries.iter() {
         match entry {
           Node::Group(g) => {
-            println!("{}", g.name);
             for child in g.children.iter() {
               match child {
                 Node::Entry(e) => {
-                  println!("  {}", e.get_title().unwrap().to_string());
+                  println!("{}/{}", g.name, e.get_title().unwrap().to_string());
                 }
                 _ => continue,
               }
