@@ -265,18 +265,24 @@ async fn get_database(options: &CliOptions, key: &DatabaseKey) -> Result<Databas
       let args = &ObjectConditionalReadArgs::new(&s3_location.bucket, &s3_location.object).unwrap();
       let object = client.get_object(args).await;
 
-      let file = if let Ok(obj) = object {
+      if let Ok(obj) = object {
         let file = obj.bytes().await?.to_vec();
         // Cache is read-only
         cache_database(name, &file)?;
-        file
+        Ok(file)
       } else {
         debug!("Failed to get object from S3, {:?}", object);
         debug!("Fallback to cache.");
-        get_cache_database(name)?
-      };
-
-      Ok(file)
+        if let Ok(file) = get_cache_database(name) {
+          Ok(file)
+        } else {
+          debug!("Failed to get object from cache.");
+          Err(anyhow::format_err!(
+            "Failed to get object from S3 or cache, {:?}",
+            object.err().unwrap()
+          ))
+        }
+      }
     }
     _ => Err(anyhow::format_err!("Unsupported schema \"{}\"", schema)),
   };
