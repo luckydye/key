@@ -117,6 +117,21 @@ enum Commands {
         #[arg(long, default_value = "Password")]
         field: String,
     },
+
+    /// Delete a specific entry from the database
+    Delete {
+        /// Name of entry
+        name: String,
+    },
+
+    /// Rename a specific entry in the database
+    Rename {
+        /// Name of entry
+        name: String,
+
+        /// New name of entry
+        new_name: String,
+    },
 }
 
 fn read_password(title: String) -> String {
@@ -411,24 +426,74 @@ async fn command_set(
         debug!("Added entry {}", name);
 
         write_database(&options, &mut db, &key).await?;
-    } else {
-        if let Some(NodeRefMut::Entry(entry)) = entry {
-            let pw = entry.fields.get_mut("Password");
-
-            if pw.is_none() {
-                entry
-                    .fields
-                    .insert(field.to_string(), Value::Protected(value.as_bytes().into()));
-            } else if let Some(pw) = pw {
-                *pw = Value::Protected(value.as_bytes().into());
-            }
-
-            debug!("Set entry field {} to {}", field, value);
-
-            write_database(&options, &mut db, &key).await?;
-        }
+        return Ok(());
     }
 
+    if let Some(NodeRefMut::Entry(entry)) = entry {
+        let pw = entry.fields.get_mut(&field.to_string());
+
+        if pw.is_none() {
+            entry
+                .fields
+                .insert(field.to_string(), Value::Protected(value.as_bytes().into()));
+        } else if let Some(pw) = pw {
+            *pw = Value::Protected(value.as_bytes().into());
+        }
+
+        debug!("Set entry field {} to {}", field, value);
+
+        write_database(&options, &mut db, &key).await?;
+    }
+
+    Ok(())
+}
+
+async fn command_rename(options: &CliOptions, name: &String, new_name: &String) -> Result<()> {
+    let key = get_database_key(&options)?;
+    let mut db = get_database(&options, &key).await?;
+
+    let entry = db.root.get_mut(&[name]);
+
+    if entry.is_none() {
+        Err(anyhow::format_err!("Entry not found"))?;
+    }
+
+    if let Some(NodeRefMut::Entry(entry)) = entry {
+        let title = entry.fields.get_mut("Title").unwrap();
+        *title = Value::Unprotected(new_name.clone());
+        debug!("Set Title of field {} to {}", name, new_name);
+        write_database(&options, &mut db, &key).await?;
+    }
+
+    Ok(())
+}
+
+async fn command_delete(options: &CliOptions, name: &String) -> Result<()> {
+    let key = get_database_key(&options)?;
+    let mut db = get_database(&options, &key).await?;
+
+    let entry = db.root.get_mut(&[name]);
+    if entry.is_none() {
+        Err(anyhow::format_err!("Entry not found"))?;
+    }
+
+    let index = db
+        .root
+        .children
+        .iter()
+        .position(|n| {
+            if let Node::Entry(e) = n {
+                e.get_title().unwrap() == name
+            } else {
+                false
+            }
+        })
+        .unwrap();
+
+    db.root.children.remove(index);
+
+    debug!("Deleted entry {} at {}", name, index);
+    write_database(&options, &mut db, &key).await?;
     Ok(())
 }
 
@@ -449,6 +514,8 @@ async fn main() -> Result<()> {
         Some(Commands::Set { name, value, field }) => {
             command_set(&options, name, value, field).await
         }
+        Some(Commands::Delete { name }) => command_delete(&options, name).await,
+        Some(Commands::Rename { name, new_name }) => command_rename(&options, name, new_name).await,
         None => {
             Cli::command().print_help()?;
             println!("No command provided.");
