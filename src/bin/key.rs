@@ -21,6 +21,9 @@ use std::{
 };
 use url::Url;
 
+static PASSWORD_CHARSET: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz\
+    0123456789!@#$%^&*()_+-=[]{}|;':,.<>?";
+
 // TODO: refactor this into a separate module, s3, filesystem, and more backends can be added.
 
 #[derive(Debug)]
@@ -90,6 +93,13 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+  /// Generate a new password
+  Gen {
+    /// Length of password
+    #[arg(long, default_value = "18")]
+    length: usize,
+  },
+
   /// List all entries of the database
   List {
     /// Output format (json, yaml, toml)
@@ -138,6 +148,10 @@ enum Commands {
 fn read_password(title: String) -> String {
   let t = Input::new(title).placeholder("Password").password(true);
   t.run().expect("error running input")
+}
+
+fn generate_password(length: &usize) -> String {
+  random_string::generate(*length, PASSWORD_CHARSET)
 }
 
 fn get_database_key(options: &CliOptions) -> Result<DatabaseKey> {
@@ -561,6 +575,10 @@ async fn main() -> Result<()> {
     Some(Commands::Set { name, value, field }) => command_set(&options, name, value, field).await,
     Some(Commands::Delete { name }) => command_delete(&options, name).await,
     Some(Commands::Rename { name, new_name }) => command_rename(&options, name, new_name).await,
+    Some(Commands::Gen { length }) => {
+      println!("{}", generate_password(length));
+      Ok(())
+    }
     None => {
       Cli::command().print_help()?;
       println!("No command provided.");
