@@ -20,4 +20,4 @@ run = "cargo build --bin key --release"
 [tasks."cli:install"]
 dir = "crates/key"
 depends = ["cli:build"]
-run = "cp target/release/key $HOME/bin/key"
+run = "cp ../../target/release/key $HOME/bin/key"

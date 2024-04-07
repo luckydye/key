@@ -29,7 +29,7 @@ static PASSWORD_CHARSET: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstu
 // TODO: refactor this into a separate module, s3, filesystem, and more backends can be added.
 
 #[derive(Debug)]
-struct CliOptions {
+struct KeeOptions {
   keepassdb: String,
   keepassdb_keyfile: Option<String>,
   keepassdb_password: Option<String>,
@@ -37,7 +37,7 @@ struct CliOptions {
   s3_secret_key: Option<String>,
 }
 
-impl CliOptions {
+impl KeeOptions {
   fn from_cli(cli: &Cli) -> Result<Self> {
     let keepassdb = cli.kdbx.clone();
     let keepassdb_keyfile = cli.keyfile.clone();
@@ -166,7 +166,7 @@ fn generate_password(length: &usize) -> String {
   random_string::generate(*length, PASSWORD_CHARSET)
 }
 
-fn get_database_key(options: &CliOptions) -> Result<DatabaseKey> {
+fn get_database_key(options: &KeeOptions) -> Result<DatabaseKey> {
   let dburl_parsed = Url::parse(&options.keepassdb.as_str())?;
   let name = dburl_parsed.path().split('/').last().unwrap().to_string();
 
@@ -206,7 +206,7 @@ fn parse_s3_url(dburl_parsed: Url) -> S3Location {
   }
 }
 
-fn get_s3_client(options: &CliOptions, dburl_parsed: &Url) -> Result<Client> {
+fn get_s3_client(options: &KeeOptions, dburl_parsed: &Url) -> Result<Client> {
   let base_url: BaseUrl = dburl_parsed.host_str().unwrap().parse::<BaseUrl>()?;
 
   if options.s3_access_key.is_some() && options.s3_secret_key.is_some() {
@@ -269,7 +269,7 @@ fn get_cache_database(name: String) -> Result<Vec<u8>> {
   Ok(buffer)
 }
 
-async fn get_database(options: &CliOptions, key: &DatabaseKey) -> Result<Database> {
+async fn get_database(options: &KeeOptions, key: &DatabaseKey) -> Result<Database> {
   let dburl = &options.keepassdb.as_str();
   let dburl_parsed = Url::parse(dburl)?;
   let schema = dburl_parsed.scheme();
@@ -322,7 +322,7 @@ async fn get_database(options: &CliOptions, key: &DatabaseKey) -> Result<Databas
   Ok(Database::open(&mut cursor, key.clone())?)
 }
 
-async fn write_database(options: &CliOptions, db: &mut Database, key: &DatabaseKey) -> Result<()> {
+async fn write_database(options: &KeeOptions, db: &mut Database, key: &DatabaseKey) -> Result<()> {
   debug!("writing database");
 
   let dburl_parsed = Url::parse(&options.keepassdb)?;
@@ -351,7 +351,7 @@ async fn write_database(options: &CliOptions, db: &mut Database, key: &DatabaseK
 }
 
 async fn upload_to_s3(
-  options: &CliOptions,
+  options: &KeeOptions,
   file: &mut dyn std::io::Read,
   length: u64,
 ) -> Result<()> {
@@ -427,7 +427,7 @@ fn parse_node_tree(node: &Node) -> KeyNode {
   }
 }
 
-async fn command_list(options: &CliOptions, format: &str) -> Result<()> {
+async fn command_list(options: &KeeOptions, format: &str) -> Result<()> {
   let key = get_database_key(&options)?;
   let db = get_database(&options, &key).await?;
 
@@ -462,7 +462,7 @@ async fn command_list(options: &CliOptions, format: &str) -> Result<()> {
   Ok(())
 }
 
-async fn command_get(options: &CliOptions, name: &String, field: &String) -> Result<()> {
+async fn command_get(options: &KeeOptions, name: &String, field: &String) -> Result<()> {
   let key = get_database_key(&options)?;
   let db = get_database(&options, &key).await?;
 
@@ -474,7 +474,7 @@ async fn command_get(options: &CliOptions, name: &String, field: &String) -> Res
   Err(anyhow::format_err!("Entry not found"))
 }
 
-async fn command_otp(options: &CliOptions, name: &String, field: &String) -> Result<()> {
+async fn command_otp(options: &KeeOptions, name: &String, field: &String) -> Result<()> {
   let key = get_database_key(&options)?;
   let db = get_database(&options, &key).await?;
 
@@ -506,7 +506,7 @@ async fn command_otp(options: &CliOptions, name: &String, field: &String) -> Res
 }
 
 async fn command_set(
-  options: &CliOptions,
+  options: &KeeOptions,
   name: &String,
   value: &String,
   field: &String,
@@ -552,7 +552,7 @@ async fn command_set(
   Ok(())
 }
 
-async fn command_rename(options: &CliOptions, name: &String, new_name: &String) -> Result<()> {
+async fn command_rename(options: &KeeOptions, name: &String, new_name: &String) -> Result<()> {
   let key = get_database_key(&options)?;
   let mut db = get_database(&options, &key).await?;
 
@@ -572,7 +572,7 @@ async fn command_rename(options: &CliOptions, name: &String, new_name: &String) 
   Ok(())
 }
 
-async fn command_delete(options: &CliOptions, name: &String) -> Result<()> {
+async fn command_delete(options: &KeeOptions, name: &String) -> Result<()> {
   let key = get_database_key(&options)?;
   let mut db = get_database(&options, &key).await?;
 
@@ -606,7 +606,7 @@ async fn main() -> Result<()> {
   env_logger::init();
 
   let cli = Cli::parse();
-  let options = CliOptions::from_cli(&cli)?;
+  let options = KeeOptions::from_cli(&cli)?;
 
   debug!("options {:?}", options);
 
