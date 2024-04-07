@@ -316,23 +316,19 @@ pub fn parse_node_tree(node: &Node) -> KeyNode {
 }
 
 pub fn otp(secret: String, issuer: Option<String>, account: Option<String>) -> Result<String> {
-  if secret.starts_with("otpauth") {
+  if secret.starts_with("otpauth:") {
     let totp = TOTP::from_url(secret).unwrap();
     Ok(totp.generate_current()?)
   } else {
-    if account.is_none() {
-      return Err(anyhow!("account is required when using a setup key"));
-    }
-
-    let totp = TOTP::new(
+    let totp = TOTP::new_unchecked(
       Algorithm::SHA1,
       6,
       1,
       30,
-      Secret::Raw(secret.as_bytes().to_vec()).to_bytes()?,
+      Secret::Encoded(secret).to_bytes()?,
       issuer,
-      account.unwrap(),
-    )?;
+      account.or(Some("".to_string())).unwrap(),
+    );
     Ok(totp.generate_current()?)
   }
 }

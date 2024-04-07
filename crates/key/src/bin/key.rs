@@ -207,11 +207,8 @@ async fn command_otp(options: &KeeOptions, name: &String, field: &String) -> Res
 
   if let Some(NodeRef::Entry(e)) = db.root.get(&[name]) {
     let password = e.get(field).unwrap().to_string();
-
     debug!("secert {password}");
-
     let result = key::otp(password, None, None)?;
-
     println!("{}", result);
 
     return Ok(());
