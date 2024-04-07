@@ -10,14 +10,13 @@ dir = "crates/key"
 run = "cargo run --bin key"
 
 [tasks.app]
-dir = "crates/key"
-run = "cargo run --bin app"
+dir = "crates/ui"
+run = "cargo run"
 
 [tasks."cli:build"]
 dir = "crates/key"
 run = "cargo build --bin key --release"
 
 [tasks."cli:install"]
-dir = "crates/key"
 depends = ["cli:build"]
-run = "cp ../../target/release/key $HOME/bin/key"
+run = "cp target/release/key $HOME/bin/key"
