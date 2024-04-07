@@ -14,6 +14,7 @@ use std::{
   io::{Cursor, Read, Write},
   path::PathBuf,
 };
+use totp_rs::{Algorithm, Secret, TOTP};
 use url::Url;
 
 static PASSWORD_CHARSET: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz\
@@ -21,11 +22,11 @@ static PASSWORD_CHARSET: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstu
 
 #[derive(Debug)]
 pub struct KeeOptions {
-  keepassdb: String,
-  keepassdb_keyfile: Option<String>,
-  keepassdb_password: Option<String>,
-  s3_access_key: Option<String>,
-  s3_secret_key: Option<String>,
+  pub keepassdb: String,
+  pub keepassdb_keyfile: Option<String>,
+  pub keepassdb_password: Option<String>,
+  pub s3_access_key: Option<String>,
+  pub s3_secret_key: Option<String>,
 }
 
 impl KeeOptions {
@@ -312,4 +313,16 @@ pub fn parse_node_tree(node: &Node) -> KeyNode {
       title: e.get_title().unwrap().to_string(),
     }),
   }
+}
+
+pub fn otp(secret: String) -> Result<String> {
+  let totp = TOTP::new(
+    Algorithm::SHA1,
+    6,
+    1,
+    30,
+    Secret::Raw(secret.into_bytes()).to_bytes().unwrap(),
+  )?;
+
+  Ok(totp.generate_current()?)
 }
