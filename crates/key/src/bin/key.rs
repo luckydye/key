@@ -206,14 +206,11 @@ async fn command_otp(options: &KeeOptions, name: &String, field: &String) -> Res
   let db = get_database(&options, &key).await?;
 
   if let Some(NodeRef::Entry(e)) = db.root.get(&[name]) {
-    let value = e.get(field).unwrap().to_string();
-    let mut password = value.clone();
-    if let Ok(url) = Url::parse(&value) {
-      let mut query = url.query_pairs();
-      let secret = query.find(|x| x.0.eq("secret")).unwrap();
-      password = secret.1.to_string();
-    }
-    let result = key::otp(password)?;
+    let password = e.get(field).unwrap().to_string();
+
+    debug!("secert {password}");
+
+    let result = key::otp(password, None, None)?;
 
     println!("{}", result);
 
