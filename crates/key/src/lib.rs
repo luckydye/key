@@ -317,7 +317,7 @@ pub fn parse_node_tree(node: &Node) -> KeyNode {
 
 pub fn otp(secret: String, issuer: Option<String>, account: Option<String>) -> Result<String> {
   if secret.starts_with("otpauth:") {
-    let totp = TOTP::from_url(secret).unwrap();
+    let totp = TOTP::from_url_unchecked(secret).unwrap();
     Ok(totp.generate_current()?)
   } else {
     let totp = TOTP::new_unchecked(
