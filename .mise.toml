@@ -3,14 +3,21 @@ rust = "1.75"
 
 [env]
 _.file = '.env'
+"RUST_LOG" = "debug"
 
-[tasks.dev]
-env = { "RUST_LOG" = "debug" }
+[tasks.cli]
+dir = "crates/key"
 run = "cargo run --bin key"
 
-[tasks.build]
+[tasks.app]
+dir = "crates/key"
+run = "cargo run --bin app"
+
+[tasks."cli:build"]
+dir = "crates/key"
 run = "cargo build --bin key --release"
 
-[tasks.install]
-depends = ["build"]
+[tasks."cli:install"]
+dir = "crates/key"
+depends = ["cli:build"]
 run = "cp target/release/key $HOME/bin/key"

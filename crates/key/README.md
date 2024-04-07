@@ -6,6 +6,7 @@ Cli to a local or remote keepass database
 Usage: key [OPTIONS] [COMMAND]
 
 Commands:
+  otp     Generate a One time password
   gen     Generate a new password
   list    List all entries of the database
   get     Get a specific entry from the database

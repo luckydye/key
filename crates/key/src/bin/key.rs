@@ -480,27 +480,24 @@ async fn command_otp(options: &CliOptions, name: &String, field: &String) -> Res
 
   if let Some(NodeRef::Entry(e)) = db.root.get(&[name]) {
     let value = e.get(field).unwrap().to_string();
-    let url = Url::parse(&value)?;
-    let mut query = url.query_pairs();
 
-    if let Some(secret) = query.find(|x| x.0.eq("secret")) {
-      let password = secret.1.to_string();
-      let seconds = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-      let result: String = totp_custom::<Sha512>(
-        DEFAULT_STEP,
-        6,
-        password.as_bytes(),
-        seconds.clone().as_secs(),
-      );
+    let mut password = value.clone();
 
-      // Spinner::new(result.clone())
-      //   .style(&demand::SpinnerStyle::minidots())
-      //   .run(move || {
-      //     sleep(Duration::from_secs(DEFAULT_STEP));
-      //   })?;
-
-      println!("{}", result);
+    if let Ok(url) = Url::parse(&value) {
+      let mut query = url.query_pairs();
+      let secret = query.find(|x| x.0.eq("secret")).unwrap();
+      password = secret.1.to_string();
     }
+
+    let seconds = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+    let result: String = totp_custom::<Sha512>(
+      DEFAULT_STEP,
+      6,
+      password.as_bytes(),
+      seconds.clone().as_secs(),
+    );
+
+    println!("{}", result);
 
     return Ok(());
   }
