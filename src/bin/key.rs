@@ -18,7 +18,9 @@ use std::{
   fs::{self, File},
   io::{Cursor, Read, Write},
   path::PathBuf,
+  time::{SystemTime, UNIX_EPOCH},
 };
+use totp_lite::{totp_custom, Sha512, DEFAULT_STEP};
 use url::Url;
 
 static PASSWORD_CHARSET: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz\
@@ -93,6 +95,16 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+  /// Generate a One time password
+  OTP {
+    /// Name of entry
+    name: String,
+
+    /// Field to get
+    #[arg(long, default_value = "otp")]
+    field: String,
+  },
+
   /// Generate a new password
   Gen {
     /// Length of password
@@ -462,6 +474,40 @@ async fn command_get(options: &CliOptions, name: &String, field: &String) -> Res
   Err(anyhow::format_err!("Entry not found"))
 }
 
+async fn command_otp(options: &CliOptions, name: &String, field: &String) -> Result<()> {
+  let key = get_database_key(&options)?;
+  let db = get_database(&options, &key).await?;
+
+  if let Some(NodeRef::Entry(e)) = db.root.get(&[name]) {
+    let value = e.get(field).unwrap().to_string();
+    let url = Url::parse(&value)?;
+    let mut query = url.query_pairs();
+
+    if let Some(secret) = query.find(|x| x.0.eq("secret")) {
+      let password = secret.1.to_string();
+      let seconds = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+      let result: String = totp_custom::<Sha512>(
+        DEFAULT_STEP,
+        6,
+        password.as_bytes(),
+        seconds.clone().as_secs(),
+      );
+
+      // Spinner::new(result.clone())
+      //   .style(&demand::SpinnerStyle::minidots())
+      //   .run(move || {
+      //     sleep(Duration::from_secs(DEFAULT_STEP));
+      //   })?;
+
+      println!("{}", result);
+    }
+
+    return Ok(());
+  }
+
+  Err(anyhow::format_err!("Entry not found or does not have otp"))
+}
+
 async fn command_set(
   options: &CliOptions,
   name: &String,
@@ -572,6 +618,7 @@ async fn main() -> Result<()> {
       command_list(&options, output.as_deref().unwrap_or("text")).await
     }
     Some(Commands::Get { name, field }) => command_get(&options, name, field).await,
+    Some(Commands::OTP { name, field }) => command_otp(&options, name, field).await,
     Some(Commands::Set { name, value, field }) => command_set(&options, name, value, field).await,
     Some(Commands::Delete { name }) => command_delete(&options, name).await,
     Some(Commands::Rename { name, new_name }) => command_rename(&options, name, new_name).await,
