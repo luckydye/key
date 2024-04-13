@@ -3,10 +3,10 @@ use keepass::db::Node;
 use serde::{Deserialize, Serialize};
 use totp_rs::{Algorithm, Secret, TOTP};
 
-#[cfg(not(target_family = "wasm"))]
+#[cfg(not(target_arch = "wasm32"))]
 pub mod db;
 
-#[cfg(not(target_family = "wasm"))]
+#[cfg(not(target_arch = "wasm32"))]
 pub mod pw;
 
 #[derive(Serialize, Deserialize, Debug)]

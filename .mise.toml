@@ -13,6 +13,10 @@ run = "cargo run --bin key"
 dir = "crates/ui"
 run = "cargo run"
 
+[tasks."wasm:build"]
+dir = "crates/key"
+run = "cargo build --lib --target=wasm32-unknown-unknown --release"
+
 [tasks."cli:build"]
 dir = "crates/key"
 run = "cargo build --bin key --release"
