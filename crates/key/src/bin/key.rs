@@ -5,7 +5,9 @@ use keepass::{
   db::{Entry, Node, NodeRef, NodeRefMut, Value},
   DatabaseKey,
 };
-use key::{generate_password, get_database, parse_node_tree, write_database, KeeOptions, KeyNode};
+use key::db::{get_database, write_database, KeeOptions};
+use key::pw::generate_password;
+use key::{parse_node_tree, KeyNode};
 use log::debug;
 use std::{env, fs::File};
 use url::Url;

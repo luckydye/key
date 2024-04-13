@@ -9,6 +9,9 @@ edition = "2021"
 repository = "https://github.com/luckydye/key.git"
 homepage = "https://github.com/luckydye/key"
 
+[lib]
+crate-type = ["lib", "cdylib"]
+
 [dependencies]
 anyhow = "1.0.81"
 clap = { version = "4.5.3", features = ["derive", "env"] }
