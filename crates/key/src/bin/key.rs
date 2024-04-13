@@ -6,8 +6,7 @@ use keepass::{
   DatabaseKey,
 };
 use key::db::{get_database, write_database, KeeOptions};
-use key::pw::generate_password;
-use key::{parse_node_tree, KeyNode};
+use key::{generate_password, parse_node_tree, KeyNode};
 use log::debug;
 use std::{env, fs::File};
 use url::Url;

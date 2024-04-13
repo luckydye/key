@@ -6,8 +6,12 @@ use totp_rs::{Algorithm, Secret, TOTP};
 #[cfg(not(target_arch = "wasm32"))]
 pub mod db;
 
-#[cfg(not(target_arch = "wasm32"))]
-pub mod pw;
+static PASSWORD_CHARSET: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz\
+    0123456789!@#$%^&*()_+-=[]{}|;':,.<>?";
+
+pub fn generate_password(length: &usize) -> String {
+  random_string::generate(*length, PASSWORD_CHARSET)
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct KeyEntry {
