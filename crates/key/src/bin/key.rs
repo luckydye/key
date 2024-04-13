@@ -1,12 +1,12 @@
 use anyhow::Result;
 use clap::{CommandFactory, Parser, Subcommand};
 use demand::Input;
-use keepass::{
-  db::{Entry, Node, NodeRef, NodeRefMut, Value},
-  DatabaseKey,
+use keepass::{db::Node, DatabaseKey};
+use key::{
+  db::{get_database, write_database, KeeOptions},
+  delete_entry, get_entry, get_entry_otp, rename_entry, to_json,
 };
-use key::db::{get_database, write_database, KeeOptions};
-use key::{generate_password, parse_node_tree, KeyNode};
+use key::{generate_password, set_entry};
 use log::debug;
 use std::{env, fs::File};
 use url::Url;
@@ -156,18 +156,14 @@ fn get_database_key(options: &KeeOptions) -> Result<DatabaseKey> {
 }
 
 async fn command_list(options: &KeeOptions, format: &str) -> Result<()> {
-  let key = get_database_key(&options)?;
-  let db = get_database(&options, &key).await?;
-
-  let entries = db.root.children;
+  let db = get_database(&options, &get_database_key(&options)?).await?;
 
   match format {
     "json" => {
-      let nodes: Vec<KeyNode> = entries.iter().map(|n| parse_node_tree(n)).collect();
-      println!("{}", serde_json::to_string(&nodes)?);
+      println!("{}", to_json(db)?);
     }
     _ => {
-      for entry in entries.iter() {
+      for entry in db.root.children.iter() {
         match entry {
           Node::Group(g) => {
             for child in g.children.iter() {
@@ -191,31 +187,15 @@ async fn command_list(options: &KeeOptions, format: &str) -> Result<()> {
 }
 
 async fn command_get(options: &KeeOptions, name: &String, field: &String) -> Result<()> {
-  let key = get_database_key(&options)?;
-  let db = get_database(&options, &key).await?;
-
-  if let Some(NodeRef::Entry(e)) = db.root.get(&[name]) {
-    println!("{}", e.get(field).unwrap().to_string());
-    return Ok(());
-  }
-
+  let db = get_database(&options, &get_database_key(&options)?).await?;
+  println!("{}", get_entry(&db, name, field)?);
   Err(anyhow::format_err!("Entry not found"))
 }
 
 async fn command_otp(options: &KeeOptions, name: &String, field: &String) -> Result<()> {
-  let key = get_database_key(&options)?;
-  let db = get_database(&options, &key).await?;
-
-  if let Some(NodeRef::Entry(e)) = db.root.get(&[name]) {
-    let password = e.get(field).unwrap().to_string();
-    debug!("secert {password}");
-    let result = key::otp(password, None, None)?;
-    println!("{}", result);
-
-    return Ok(());
-  }
-
-  Err(anyhow::format_err!("Entry not found or does not have otp"))
+  let db = get_database(&options, &get_database_key(&options)?).await?;
+  println!("{}", get_entry_otp(&db, name, field)?);
+  Ok(())
 }
 
 async fn command_set(
@@ -226,90 +206,26 @@ async fn command_set(
 ) -> Result<()> {
   let key = get_database_key(&options)?;
   let mut db = get_database(&options, &key).await?;
-
-  let entry = db.root.get_mut(&[name]);
-
-  if entry.is_none() {
-    // add a new one
-    let mut new_entry = Entry::new();
-    new_entry
-      .fields
-      .insert("Title".to_string(), Value::Unprotected(name.to_string()));
-    new_entry
-      .fields
-      .insert(field.to_string(), Value::Protected(value.as_bytes().into()));
-    db.root.add_child(new_entry);
-
-    debug!("Added entry {}", name);
-
-    write_database(&options, &mut db, &key).await?;
-    return Ok(());
-  }
-
-  if let Some(NodeRefMut::Entry(entry)) = entry {
-    let pw = entry.fields.get_mut(&field.to_string());
-
-    if pw.is_none() {
-      entry
-        .fields
-        .insert(field.to_string(), Value::Protected(value.as_bytes().into()));
-    } else if let Some(pw) = pw {
-      *pw = Value::Protected(value.as_bytes().into());
-    }
-
-    debug!("Set entry field {} to {}", field, value);
-
-    write_database(&options, &mut db, &key).await?;
-  }
-
+  set_entry(&mut db, name, value, field)?;
+  debug!("Set entry field {} to {}", field, value);
+  write_database(&options, &mut db, &key).await?;
   Ok(())
 }
 
 async fn command_rename(options: &KeeOptions, name: &String, new_name: &String) -> Result<()> {
   let key = get_database_key(&options)?;
   let mut db = get_database(&options, &key).await?;
-
-  let entry = db.root.get_mut(&[name]);
-
-  if entry.is_none() {
-    Err(anyhow::format_err!("Entry not found"))?;
-  }
-
-  if let Some(NodeRefMut::Entry(entry)) = entry {
-    let title = entry.fields.get_mut("Title").unwrap();
-    *title = Value::Unprotected(new_name.clone());
-    debug!("Set Title of field {} to {}", name, new_name);
-    write_database(&options, &mut db, &key).await?;
-  }
-
+  rename_entry(&mut db, name, new_name)?;
+  debug!("Set Title of field {} to {}", name, new_name);
+  write_database(&options, &mut db, &key).await?;
   Ok(())
 }
 
 async fn command_delete(options: &KeeOptions, name: &String) -> Result<()> {
   let key = get_database_key(&options)?;
   let mut db = get_database(&options, &key).await?;
-
-  let entry = db.root.get_mut(&[name]);
-  if entry.is_none() {
-    Err(anyhow::format_err!("Entry not found"))?;
-  }
-
-  let index = db
-    .root
-    .children
-    .iter()
-    .position(|n| {
-      if let Node::Entry(e) = n {
-        e.get_title().unwrap() == name
-      } else {
-        false
-      }
-    })
-    .unwrap();
-
-  db.root.children.remove(index);
-
-  debug!("Deleted entry {} at {}", name, index);
+  delete_entry(&mut db, name)?;
+  debug!("Deleted entry {}", name);
   write_database(&options, &mut db, &key).await?;
   Ok(())
 }
