@@ -1,7 +1,9 @@
+use std::io::Cursor;
+
 use anyhow::{anyhow, Result};
 use keepass::{
   db::{Entry, Node, NodeRef, NodeRefMut, Value},
-  Database,
+  Database, DatabaseKey,
 };
 use serde::{Deserialize, Serialize};
 use totp_rs::{Algorithm, Secret, TOTP};
@@ -162,4 +164,24 @@ pub fn otp(secret: String, issuer: Option<String>, account: Option<String>) -> R
     );
     Ok(totp.generate_current()?)
   }
+}
+
+pub fn key_from(password: Option<String>, keyfile: Option<Vec<u8>>) -> Result<DatabaseKey> {
+  let mut key = DatabaseKey::new();
+
+  if let Some(keyfile) = keyfile {
+    let mut cursor = Cursor::new(keyfile);
+    key = key.with_keyfile(&mut cursor)?;
+  }
+
+  if let Some(password) = password {
+    key = key.with_password(password.as_str())
+  }
+
+  Ok(key)
+}
+
+pub fn db_from(source: Vec<u8>, key: DatabaseKey) -> Result<Database> {
+  let mut cursor = Cursor::new(source);
+  Ok(Database::open(&mut cursor, key.clone())?)
 }
