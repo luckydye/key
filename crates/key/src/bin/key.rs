@@ -4,7 +4,7 @@ use demand::Input;
 use keepass::{db::Node, DatabaseKey};
 use key::{
   db::{get_database, write_database, KeeOptions},
-  delete_entry, get_entry, get_entry_otp, rename_entry, to_json,
+  delete_entry, get_entry, get_entry_file, get_entry_otp, rename_entry, to_json,
 };
 use key::{generate_password, set_entry};
 use log::debug;
@@ -70,6 +70,10 @@ enum Commands {
     /// Name of entry
     name: String,
 
+    /// Extract as file
+    #[arg(long)]
+    file: bool,
+
     /// Field to get
     #[arg(long, default_value = "Password")]
     field: String,
@@ -100,6 +104,10 @@ enum Commands {
 
     /// New name of entry
     new_name: String,
+  },
+
+  /// Filter ui
+  Filter {
   },
 }
 
@@ -188,8 +196,15 @@ async fn command_list(options: &KeeOptions, format: &str) -> Result<()> {
 
 async fn command_get(options: &KeeOptions, name: &String, field: &String) -> Result<()> {
   let db = get_database(&options, &get_database_key(&options)?).await?;
-  println!("{}", get_entry(&db, name, field)?);
-  Err(anyhow::format_err!("Entry not found"))
+  let entry = get_entry(&db, name, field)?;
+  println!("{}", entry);
+  Ok(())
+}
+
+async fn command_get_file(options: &KeeOptions, name: &String, field: &String) -> Result<()> {
+  let db = get_database(&options, &get_database_key(&options)?).await?;
+  get_entry_file(&db, name, field)?;
+  Ok(())
 }
 
 async fn command_otp(options: &KeeOptions, name: &String, field: &String) -> Result<()> {
@@ -243,7 +258,15 @@ async fn main() -> Result<()> {
     Some(Commands::List { output }) => {
       command_list(&options, output.as_deref().unwrap_or("text")).await
     }
-    Some(Commands::Get { name, field }) => command_get(&options, name, field).await,
+    Some(Commands::Get { name, field, file }) => {
+      if file.clone() == true {
+        return command_get_file(&options, name, field).await;
+      }
+      return command_get(&options, name, field).await;
+    }
+    Some(Commands::Filter { }) => {
+      Ok(())
+    }
     Some(Commands::OTP { name, field }) => command_otp(&options, name, field).await,
     Some(Commands::Set { name, value, field }) => command_set(&options, name, value, field).await,
     Some(Commands::Delete { name }) => command_delete(&options, name).await,

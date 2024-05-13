@@ -1,4 +1,4 @@
-use std::io::Cursor;
+use std::{fs, io::Cursor};
 
 use anyhow::{anyhow, Result};
 use keepass::{
@@ -121,6 +121,14 @@ pub fn set_entry(db: &mut Database, name: &String, value: &String, field: &Strin
 pub fn get_entry(db: &Database, name: &String, field: &String) -> Result<String> {
   if let Some(NodeRef::Entry(e)) = db.root.get(&[name]) {
     return Ok(e.get(field).unwrap().to_string());
+  }
+  Err(anyhow!("Entry not found"))
+}
+
+pub fn get_entry_file(db: &Database, name: &String, file: &String) -> Result<String> {
+  for a in db.header_attachments.clone() {
+    let path = String::from_utf8(a.content.clone()).expect("Our bytes should be valid utf8");
+    fs::write(path, a.content)?;
   }
   Err(anyhow!("failed to get value"))
 }
