@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::{CommandFactory, Parser, Subcommand};
-use demand::Input;
+use demand::{DemandOption, Input, Select};
 use keepass::{db::Node, DatabaseKey};
 use key::{
   db::{get_database, write_database, KeeOptions},
@@ -106,8 +106,8 @@ enum Commands {
     new_name: String,
   },
 
-  /// Filter ui
-  Filter {
+  /// Chooser ui
+  Choose {
   },
 }
 
@@ -264,7 +264,18 @@ async fn main() -> Result<()> {
       }
       return command_get(&options, name, field).await;
     }
-    Some(Commands::Filter { }) => {
+    Some(Commands::Choose { }) => {
+    let ms = Select::new("Toppings")
+            .description("Select your topping")
+            .filterable(true)
+            .option(DemandOption::new("Lettuce"))
+            .option(DemandOption::new("Tomatoes"))
+            .option(DemandOption::new("Charm Sauce"))
+            .option(DemandOption::new("Jalapenos").label("Jalapeños"))
+            .option(DemandOption::new("Cheese"))
+            .option(DemandOption::new("Vegan Cheese"))
+            .option(DemandOption::new("Nutella"));
+        ms.run().expect("error running select");
       Ok(())
     }
     Some(Commands::OTP { name, field }) => command_otp(&options, name, field).await,
