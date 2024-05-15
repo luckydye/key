@@ -1,7 +1,7 @@
 [package]
 name = "key"
 license = "MIT"
-version = "1.2.3"
+version = "1.2.4"
 description = "Cli to a local or remote keepass database"
 authors = ["Tim Havlicek"]
 keywords = ["keepass", "s3", "password"]
@@ -14,6 +14,7 @@ crate-type = ["lib", "cdylib"]
 
 [dependencies]
 anyhow = "1.0.81"
+copypasta = "0.10.1"
 demand = "1.1.0"
 env_logger = "0.11.3"
 keepass = { version = "0.7.7", features = ["save_kdbx4"] }

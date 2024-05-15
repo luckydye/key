@@ -1,7 +1,10 @@
+extern crate copypasta;
+
 use anyhow::Result;
 use clap::{CommandFactory, Parser, Subcommand};
+use copypasta::{ClipboardContext, ClipboardProvider};
 use demand::{DemandOption, Input, Select};
-use keepass::{db::Node, DatabaseKey};
+use keepass::{db::Node, Database, DatabaseKey};
 use key::{
   db::{get_database, write_database, KeeOptions},
   delete_entry, get_entry, get_entry_file, get_entry_otp, rename_entry, to_json,
@@ -49,6 +52,10 @@ enum Commands {
     /// Field to get
     #[arg(long, default_value = "otp")]
     field: String,
+
+    /// Copy value to system clipboard
+    #[arg(long)]
+    clipboard: bool,
   },
 
   /// Generate a new password
@@ -73,6 +80,10 @@ enum Commands {
     /// Extract as file
     #[arg(long)]
     file: bool,
+
+    /// Copy value to system clipboard
+    #[arg(long)]
+    clipboard: bool,
 
     /// Field to get
     #[arg(long, default_value = "Password")]
@@ -106,8 +117,19 @@ enum Commands {
     new_name: String,
   },
 
-  /// Chooser ui
+  /// Chooser terminal ui
   Choose {
+    /// Copy value to system clipboard
+    #[arg(long)]
+    clipboard: bool,
+
+    /// Calculate OTP for entry
+    #[arg(long)]
+    otp: bool,
+
+    /// Field to get
+    #[arg(long, default_value = "Password")]
+    field: String,
   },
 }
 
@@ -194,9 +216,77 @@ async fn command_list(options: &KeeOptions, format: &str) -> Result<()> {
   Ok(())
 }
 
-async fn command_get(options: &KeeOptions, name: &String, field: &String) -> Result<()> {
+fn choose_key_ui(db: &Database) -> String {
+  let ms: Select<String> = Select::new("Keys")
+    .description("Select a key")
+    .filterable(true);
+
+  let mut options: Vec<DemandOption<String>> = Vec::new();
+
+  db.root.children.iter().for_each(|entry| match entry {
+    Node::Entry(e) => {
+      options.push(DemandOption::new(e.get_title().unwrap().to_string()));
+    }
+    Node::Group(g) => {
+      for child in g.children.iter() {
+        match child {
+          Node::Entry(e) => {
+            options.push(DemandOption::new(e.get_title().unwrap().to_string()));
+          }
+          _ => continue,
+        }
+      }
+    }
+  });
+
+  ms.options(options).run().expect("error running select")
+}
+
+async fn command_choose(
+  options: &KeeOptions,
+  field: &String,
+  clipboard: &bool,
+  otp: &bool,
+) -> Result<()> {
+  let db = get_database(&options, &get_database_key(&options)?).await?;
+
+  let entry = if otp.to_owned() {
+    get_entry_otp(&db, &choose_key_ui(&db), &"otp".to_string())?
+  } else {
+    get_entry(&db, &choose_key_ui(&db), &field)?
+  };
+
+  if clipboard.to_owned() {
+    to_clipboard(entry)?;
+    println!("Copied to clipboard");
+    return Ok(());
+  }
+
+  println!("{}", entry);
+  Ok(())
+}
+
+fn to_clipboard(entry: String) -> Result<()> {
+  let mut ctx = ClipboardContext::new().unwrap();
+  ctx.set_contents(entry).unwrap();
+  return Ok(());
+}
+
+async fn command_get(
+  options: &KeeOptions,
+  name: &String,
+  field: &String,
+  clipboard: &bool,
+) -> Result<()> {
   let db = get_database(&options, &get_database_key(&options)?).await?;
   let entry = get_entry(&db, name, field)?;
+
+  if clipboard.to_owned() {
+    to_clipboard(entry)?;
+    println!("Copied {field} to clipboard");
+    return Ok(());
+  }
+
   println!("{}", entry);
   Ok(())
 }
@@ -207,9 +297,22 @@ async fn command_get_file(options: &KeeOptions, name: &String, field: &String) -
   Ok(())
 }
 
-async fn command_otp(options: &KeeOptions, name: &String, field: &String) -> Result<()> {
+async fn command_otp(
+  options: &KeeOptions,
+  name: &String,
+  field: &String,
+  clipboard: &bool,
+) -> Result<()> {
   let db = get_database(&options, &get_database_key(&options)?).await?;
-  println!("{}", get_entry_otp(&db, name, field)?);
+  let val = get_entry_otp(&db, name, field)?;
+
+  if clipboard.to_owned() {
+    to_clipboard(val)?;
+    println!("Copied {field} to clipboard");
+    return Ok(());
+  }
+
+  println!("{}", val);
   Ok(())
 }
 
@@ -258,27 +361,27 @@ async fn main() -> Result<()> {
     Some(Commands::List { output }) => {
       command_list(&options, output.as_deref().unwrap_or("text")).await
     }
-    Some(Commands::Get { name, field, file }) => {
+    Some(Commands::Get {
+      name,
+      field,
+      file,
+      clipboard,
+    }) => {
       if file.clone() == true {
         return command_get_file(&options, name, field).await;
       }
-      return command_get(&options, name, field).await;
+      return command_get(&options, name, field, clipboard).await;
     }
-    Some(Commands::Choose { }) => {
-    let ms = Select::new("Toppings")
-            .description("Select your topping")
-            .filterable(true)
-            .option(DemandOption::new("Lettuce"))
-            .option(DemandOption::new("Tomatoes"))
-            .option(DemandOption::new("Charm Sauce"))
-            .option(DemandOption::new("Jalapenos").label("Jalapeños"))
-            .option(DemandOption::new("Cheese"))
-            .option(DemandOption::new("Vegan Cheese"))
-            .option(DemandOption::new("Nutella"));
-        ms.run().expect("error running select");
-      Ok(())
-    }
-    Some(Commands::OTP { name, field }) => command_otp(&options, name, field).await,
+    Some(Commands::Choose {
+      clipboard,
+      field,
+      otp,
+    }) => command_choose(&options, field, clipboard, otp).await,
+    Some(Commands::OTP {
+      name,
+      field,
+      clipboard,
+    }) => command_otp(&options, name, field, clipboard).await,
     Some(Commands::Set { name, value, field }) => command_set(&options, name, value, field).await,
     Some(Commands::Delete { name }) => command_delete(&options, name).await,
     Some(Commands::Rename { name, new_name }) => command_rename(&options, name, new_name).await,
