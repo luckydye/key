@@ -125,7 +125,7 @@ pub fn get_entry(db: &Database, name: &String, field: &String) -> Result<String>
   Err(anyhow!("Entry not found"))
 }
 
-pub fn get_entry_file(db: &Database, name: &String, file: &String) -> Result<String> {
+pub fn get_entry_file(db: &Database, _name: &String, _file: &String) -> Result<String> {
   for a in db.header_attachments.clone() {
     let path = String::from_utf8(a.content.clone()).expect("Our bytes should be valid utf8");
     fs::write(path, a.content)?;
