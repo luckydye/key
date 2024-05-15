@@ -218,12 +218,17 @@ async fn command_list(options: &KeeOptions, format: &str) -> Result<()> {
 
 struct ChooseEntry {
   value: String,
-  user: Option<&str>,
+  user: Option<String>,
 }
 
 impl fmt::Display for ChooseEntry {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "({}, {})", self.value, self.user.unwrap_or(""))
+    write!(
+      f,
+      "({}, {})",
+      self.value,
+      self.user.clone().unwrap_or("".to_string())
+    )
   }
 }
 
@@ -237,7 +242,7 @@ fn choose_key_ui(db: &Database) -> ChooseEntry {
   db.root.children.iter().for_each(|entry| match entry {
     Node::Entry(e) => {
       options.push(DemandOption::new(ChooseEntry {
-        user: e.get_username(),
+        user: Some(e.get_username().unwrap_or("").to_string()),
         value: e.get_title().unwrap().to_string(),
       }));
     }
@@ -246,7 +251,7 @@ fn choose_key_ui(db: &Database) -> ChooseEntry {
         match child {
           Node::Entry(e) => {
             options.push(DemandOption::new(ChooseEntry {
-              user: e.get_username(),
+              user: Some(e.get_username().unwrap_or("").to_string()),
               value: e.get_title().unwrap().to_string(),
             }));
           }
