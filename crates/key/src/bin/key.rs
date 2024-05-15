@@ -11,7 +11,7 @@ use key::{
 };
 use key::{generate_password, set_entry};
 use log::debug;
-use std::{env, fs::File};
+use std::{env, fmt, fs::File};
 use url::Url;
 
 /// Command Line Interface to a local or remote keepass database.
@@ -216,22 +216,39 @@ async fn command_list(options: &KeeOptions, format: &str) -> Result<()> {
   Ok(())
 }
 
-fn choose_key_ui(db: &Database) -> String {
-  let ms: Select<String> = Select::new("Keys")
+struct ChooseEntry {
+  value: String,
+  user: Option<&str>,
+}
+
+impl fmt::Display for ChooseEntry {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "({}, {})", self.value, self.user.unwrap_or(""))
+  }
+}
+
+fn choose_key_ui(db: &Database) -> ChooseEntry {
+  let ms: Select<ChooseEntry> = Select::new("Keys")
     .description("Select a key")
     .filterable(true);
 
-  let mut options: Vec<DemandOption<String>> = Vec::new();
+  let mut options: Vec<DemandOption<ChooseEntry>> = Vec::new();
 
   db.root.children.iter().for_each(|entry| match entry {
     Node::Entry(e) => {
-      options.push(DemandOption::new(e.get_title().unwrap().to_string()));
+      options.push(DemandOption::new(ChooseEntry {
+        user: e.get_username(),
+        value: e.get_title().unwrap().to_string(),
+      }));
     }
     Node::Group(g) => {
       for child in g.children.iter() {
         match child {
           Node::Entry(e) => {
-            options.push(DemandOption::new(e.get_title().unwrap().to_string()));
+            options.push(DemandOption::new(ChooseEntry {
+              user: e.get_username(),
+              value: e.get_title().unwrap().to_string(),
+            }));
           }
           _ => continue,
         }
@@ -251,9 +268,9 @@ async fn command_choose(
   let db = get_database(&options, &get_database_key(&options)?).await?;
 
   let entry = if otp.to_owned() {
-    get_entry_otp(&db, &choose_key_ui(&db), &"otp".to_string())?
+    get_entry_otp(&db, &choose_key_ui(&db).value, &"otp".to_string())?
   } else {
-    get_entry(&db, &choose_key_ui(&db), &field)?
+    get_entry(&db, &choose_key_ui(&db).value, &field)?
   };
 
   if clipboard.to_owned() {
