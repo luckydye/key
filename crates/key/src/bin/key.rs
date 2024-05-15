@@ -2,6 +2,7 @@ extern crate copypasta;
 
 use anyhow::Result;
 use clap::{CommandFactory, Parser, Subcommand};
+use colored::Colorize;
 use copypasta::{ClipboardContext, ClipboardProvider};
 use demand::{DemandOption, Input, Select};
 use keepass::{db::Node, Database, DatabaseKey};
@@ -225,9 +226,9 @@ impl fmt::Display for ChooseEntry {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     write!(
       f,
-      "({}, {})",
+      "{} ({})",
       self.value,
-      self.user.clone().unwrap_or("".to_string())
+      self.user.clone().unwrap_or("".to_string()).bright_black()
     )
   }
 }
