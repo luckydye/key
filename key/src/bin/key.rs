@@ -314,7 +314,11 @@ async fn command_get(
   Ok(())
 }
 
-async fn command_get_file(options: &KeeOptions, name: &String, field: &String) -> Result<()> {
+async fn command_get_file(
+  options: &KeeOptions,
+  name: &String,
+  field: &String,
+) -> Result<()> {
   let db = get_database(&options, &get_database_key(&options)?).await?;
   get_entry_file(&db, name, field)?;
   Ok(())
@@ -353,7 +357,11 @@ async fn command_set(
   Ok(())
 }
 
-async fn command_rename(options: &KeeOptions, name: &String, new_name: &String) -> Result<()> {
+async fn command_rename(
+  options: &KeeOptions,
+  name: &String,
+  new_name: &String,
+) -> Result<()> {
   let key = get_database_key(&options)?;
   let mut db = get_database(&options, &key).await?;
   rename_entry(&mut db, name, new_name)?;
@@ -405,9 +413,13 @@ async fn main() -> Result<()> {
       field,
       clipboard,
     }) => command_otp(&options, name, field, clipboard).await,
-    Some(Commands::Set { name, value, field }) => command_set(&options, name, value, field).await,
+    Some(Commands::Set { name, value, field }) => {
+      command_set(&options, name, value, field).await
+    }
     Some(Commands::Delete { name }) => command_delete(&options, name).await,
-    Some(Commands::Rename { name, new_name }) => command_rename(&options, name, new_name).await,
+    Some(Commands::Rename { name, new_name }) => {
+      command_rename(&options, name, new_name).await
+    }
     Some(Commands::Gen { length }) => {
       println!("{}", generate_password(length));
       Ok(())

@@ -24,7 +24,7 @@ export function App() {
 
 	createEffect(() => {
 		const id = selected();
-		if(!id) return;
+		if (!id) return;
 
 		invoke("entry", { name: id }).then((res) => {
 			setDetail(res as Entry | Group);

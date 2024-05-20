@@ -1,0 +1,80 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "key",
+  "title": "Key",
+  "description": "",
+  "icon": "key.png",
+  "author": "luckydye",
+  "categories": [
+    "Other"
+  ],
+  "license": "MIT",
+  "commands": [
+    {
+      "name": "index",
+      "title": "Key",
+      "description": "Access to Kepass Database",
+      "mode": "view",
+      "preferences": [
+        {
+          "name": "bin",
+          "type": "textfield",
+          "required": true,
+          "description": "Key bin path",
+          "title": "Key bin path"
+        },
+        {
+          "name": "database_url",
+          "type": "textfield",
+          "required": true,
+          "description": "Database URL",
+          "title": "Database URL"
+        },
+        {
+          "name": "keyfile_path",
+          "type": "textfield",
+          "required": false,
+          "description": "Keyfile Path",
+          "title": "Keyfile Path"
+        },
+        {
+          "name": "password",
+          "type": "password",
+          "required": true,
+          "description": "Database Password",
+          "title": "Password"
+        },
+        {
+          "name": "s3_access_key",
+          "type": "password",
+          "required": false,
+          "description": "S3 Access Key",
+          "title": "S3 Access Key"
+        },
+        {
+          "name": "s3_secret",
+          "type": "password",
+          "required": false,
+          "description": "S3 Secret",
+          "title": "S3 Secret"
+        }
+      ]
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.74.1",
+    "@raycast/utils": "^1.15.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.8.10",
+    "@types/react": "18.2.27",
+    "typescript": "^5.2.2"
+  },
+  "scripts": {
+    "build": "ray build -e dist",
+    "dev": "ray develop",
+    "fix-lint": "ray lint --fix",
+    "lint": "ray lint",
+    "publish": "npx @raycast/api@latest publish"
+  }
+}
