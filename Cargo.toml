@@ -1,7 +1,4 @@
 [workspace]
-members = [
-    "crates/key",
-    "crates/ui",
-]
-default-members = ["crates/key"]
+members = ["key", "app"]
+default-members = ["key"]
 resolver = "2"
