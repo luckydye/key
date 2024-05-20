@@ -22,6 +22,7 @@ pub struct KeyEntry {
   uuid: String,
   title: String,
   user: Option<String>,
+  password: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -42,7 +43,13 @@ pub enum KeyNode {
 
 pub fn to_json(db: Database) -> Result<String> {
   let entries = db.root.children;
-  let nodes: Vec<KeyNode> = entries.iter().map(|n| parse_node_tree(n)).collect();
+  let nodes: Vec<KeyNode> = entries
+    .iter()
+    .map(|n| {
+      let node = parse_node_tree(n);
+      node
+    })
+    .collect();
   Ok(serde_json::to_string(&nodes)?)
 }
 
@@ -163,6 +170,7 @@ pub fn parse_node_tree(node: &Node) -> KeyNode {
       uuid: e.uuid.to_string(),
       title: e.get_title().unwrap().to_string(),
       user: e.get_username().map(str::to_string),
+      password: e.get_password().map(str::to_string),
     }),
   }
 }
