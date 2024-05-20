@@ -73,6 +73,38 @@ const execp = async (command: string, options?: { env: NodeJS.ProcessEnv | undef
 	return output.stdout.trim();
 };
 
+const execkey = async (command: string) => {
+  const preferences = getPreferenceValues<Preferences>();
+  return await execp(`${preferences.bin} ${command}`, { env: env() });
+}
+
+const copyOtpToClipboard = async (entry: Entry) => {
+  const otp = await execkey(`otp ${entry.title}`);
+	await Clipboard.copy(otp);
+	await showHUD("Copied to clipboard", {
+		clearRootSearch: true,
+		popToRootType: PopToRootType.Immediate,
+	});
+}
+
+const copyPasswordToClipboard = async (entry: Entry) => {
+  const pw = await execkey(`get ${entry.title}`);
+	await Clipboard.copy(pw);
+	await showHUD("Copied to clipboard", {
+		clearRootSearch: true,
+		popToRootType: PopToRootType.Immediate,
+	});
+}
+
+const pastePassword = async (entry: Entry) => {
+  const pw = await execkey(`get ${entry.title}`);
+	await Clipboard.paste(pw);
+	await showHUD("Pasted Password", {
+		clearRootSearch: true,
+		popToRootType: PopToRootType.Immediate,
+	});
+}
+
 export default function KeyCommand() {
 	const preferences = getPreferenceValues<Preferences>();
 	const cmd = useExec<string>(preferences.bin, ["list", "--output", "json"], {
@@ -128,16 +160,18 @@ export default function KeyCommand() {
 										}
 									/>
 									{entry.password && (
-										<Action.CopyToClipboard
+										<Action
+								      icon="clipboard.png"
 											title="Copy Password to clipboard"
-											content={entry.password}
+											onAction={() => copyPasswordToClipboard(entry)}
 											shortcut={Shortcuts.Copy}
 										/>
 									)}
 									{entry.password && (
-										<Action.Paste
+										<Action
+								      icon="clipboard.png"
 											title="Paste Password"
-											content={entry.password}
+											onAction={() => pastePassword(entry)}
 											shortcut={Shortcuts.Paste}
 										/>
 									)}
@@ -145,14 +179,7 @@ export default function KeyCommand() {
 										<Action
 										  icon="otp.png"
 											title="Copy One Time Password"
-											onAction={async () => {
-												const otp = await execp(`${preferences.bin} otp ${entry.title}`, { env: env() });
-												await Clipboard.copy(otp);
-												await showHUD("Copied to clipboard", {
-													clearRootSearch: true,
-													popToRootType: PopToRootType.Immediate,
-												});
-											}}
+											onAction={() => copyOtpToClipboard(entry)}
 											shortcut={Shortcuts.OTP}
 										/>
 									)}
