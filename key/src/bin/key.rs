@@ -68,7 +68,7 @@ enum Commands {
 
   /// List all entries of the database
   List {
-    /// Output format (json, yaml, toml) !! This may print passwords to stdout.
+    /// Output format (json, yaml, toml)
     #[arg(short = 'o', long)]
     output: Option<String>,
   },
