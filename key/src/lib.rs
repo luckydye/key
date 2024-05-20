@@ -21,6 +21,7 @@ pub fn generate_password(length: &usize) -> String {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct KeyEntry {
   title: String,
+  user: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -84,7 +85,12 @@ pub fn rename_entry(db: &mut Database, name: &String, new_name: &String) -> Resu
   Err(anyhow!("failed to rename entry"))
 }
 
-pub fn set_entry(db: &mut Database, name: &String, value: &String, field: &String) -> Result<()> {
+pub fn set_entry(
+  db: &mut Database,
+  name: &String,
+  value: &String,
+  field: &String,
+) -> Result<()> {
   let entry = db.root.get_mut(&[name]);
 
   if entry.is_none() {
@@ -127,7 +133,8 @@ pub fn get_entry(db: &Database, name: &String, field: &String) -> Result<String>
 
 pub fn get_entry_file(db: &Database, _name: &String, _file: &String) -> Result<String> {
   for a in db.header_attachments.clone() {
-    let path = String::from_utf8(a.content.clone()).expect("Our bytes should be valid utf8");
+    let path =
+      String::from_utf8(a.content.clone()).expect("Our bytes should be valid utf8");
     fs::write(path, a.content)?;
   }
   Err(anyhow!("failed to get value"))
@@ -152,11 +159,16 @@ pub fn parse_node_tree(node: &Node) -> KeyNode {
     }
     Node::Entry(e) => KeyNode::Entry(KeyEntry {
       title: e.get_title().unwrap().to_string(),
+      user: e.get_username().map(str::to_string),
     }),
   }
 }
 
-pub fn otp(secret: String, issuer: Option<String>, account: Option<String>) -> Result<String> {
+pub fn otp(
+  secret: String,
+  issuer: Option<String>,
+  account: Option<String>,
+) -> Result<String> {
   if secret.starts_with("otpauth:") {
     let totp = TOTP::from_url_unchecked(secret).unwrap();
     Ok(totp.generate_current()?)
@@ -174,7 +186,10 @@ pub fn otp(secret: String, issuer: Option<String>, account: Option<String>) -> R
   }
 }
 
-pub fn key_from(password: Option<String>, keyfile: Option<Vec<u8>>) -> Result<DatabaseKey> {
+pub fn key_from(
+  password: Option<String>,
+  keyfile: Option<Vec<u8>>,
+) -> Result<DatabaseKey> {
   let mut key = DatabaseKey::new();
 
   if let Some(keyfile) = keyfile {
