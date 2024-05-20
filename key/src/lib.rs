@@ -1,12 +1,11 @@
 use std::{fs, io::Cursor};
 
 use anyhow::{anyhow, Result};
-use keepass::{
-  db::{Entry, Node, NodeRef, NodeRefMut, Value},
-  Database, DatabaseKey,
-};
+use keepass::{Database, DatabaseKey};
 use serde::{Deserialize, Serialize};
 use totp_rs::{Algorithm, Secret, TOTP};
+
+pub use keepass::db::{Entry, Node, NodeRef, NodeRefMut, Value};
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod db;
@@ -20,12 +19,14 @@ pub fn generate_password(length: &usize) -> String {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct KeyEntry {
+  uuid: String,
   title: String,
   user: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct KeyGroup {
+  uuid: String,
   title: String,
   entries: Vec<KeyNode>,
 }
@@ -153,11 +154,13 @@ pub fn parse_node_tree(node: &Node) -> KeyNode {
     Node::Group(g) => {
       let entries: Vec<KeyNode> = g.children.iter().map(parse_node_tree).collect();
       KeyNode::Group(KeyGroup {
+        uuid: g.uuid.to_string(),
         title: g.name.clone(),
         entries,
       })
     }
     Node::Entry(e) => KeyNode::Entry(KeyEntry {
+      uuid: e.uuid.to_string(),
       title: e.get_title().unwrap().to_string(),
       user: e.get_username().map(str::to_string),
     }),

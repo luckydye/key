@@ -19,7 +19,7 @@ colored = "2.1.0"
 copypasta = "0.10.1"
 demand = "1.1.0"
 env_logger = "0.11.3"
-keepass = { version = "0.7.7", features = ["save_kdbx4"] }
+keepass = { version = "0.7.7", features = ["save_kdbx4", "serialization"] }
 log = "0.4.21"
 random-string = "1.1.0"
 serde = { version = "1.0.197", features = ["derive"] }

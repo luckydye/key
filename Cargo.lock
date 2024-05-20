@@ -2351,6 +2351,8 @@ dependencies = [
  "rust-argon2",
  "salsa20",
  "secstr",
+ "serde",
+ "serde_json",
  "sha2",
  "thiserror",
  "twofish",
