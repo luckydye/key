@@ -81,7 +81,9 @@ pub async fn get_database(options: &KeeOptions, key: &DatabaseKey) -> Result<Dat
 
       debug!("Reading from {:?}", s3_location);
 
-      let args = &ObjectConditionalReadArgs::new(&s3_location.bucket, &s3_location.object).unwrap();
+      let args =
+        &ObjectConditionalReadArgs::new(&s3_location.bucket, &s3_location.object)
+          .unwrap();
       let object = client.get_object(args).await;
 
       if let Ok(obj) = object {
@@ -198,25 +200,30 @@ pub struct KeeOptions {
   pub s3_secret_key: Option<String>,
 }
 
-impl KeeOptions {
-  pub fn from_env() -> Result<Self> {
-    let keepassdb = env::var("KEY_PASSWORD").ok();
-    let keepassdb_keyfile = env::var("KEY_PASSWORD").ok();
-    let keepassdb_password = env::var("KEY_PASSWORD").ok();
-    let s3_access_key = env::var("KEY_S3_ACCESS_KEY").ok();
-    let s3_secret_key = env::var("KEY_S3_SECRET_KEY").ok();
-
-    if keepassdb.is_none() {
-      return Err(anyhow::format_err!("No database url provided."));
+impl From<env::Vars> for KeeOptions {
+  fn from(mut vars: env::Vars) -> Self {
+    KeeOptions {
+      keepassdb: vars
+        .find(|v| v.0 == "KEY_DATABASE_URL")
+        .map(|v| v.1)
+        .expect("Missing db url"),
+      keepassdb_keyfile: vars.find(|v| v.0 == "KEY_KEYFILE").map(|v| v.1),
+      keepassdb_password: vars.find(|v| v.0 == "KEY_PASSWORD").map(|v| v.1),
+      s3_access_key: vars.find(|v| v.0 == "KEY_S3_ACCESS_KEY").map(|v| v.1),
+      s3_secret_key: vars.find(|v| v.0 == "KEY_S3_SECRET_KEY").map(|v| v.1),
     }
+  }
+}
 
-    Ok(Self {
-      keepassdb: keepassdb.unwrap(),
-      keepassdb_keyfile,
-      keepassdb_password,
-      s3_access_key,
-      s3_secret_key,
-    })
+impl Default for KeeOptions {
+  fn default() -> Self {
+    return Self {
+      keepassdb: "".to_string(),
+      keepassdb_keyfile: None,
+      keepassdb_password: None,
+      s3_access_key: None,
+      s3_secret_key: None,
+    };
   }
 }
 

@@ -10,6 +10,7 @@ repository = "https://github.com/luckydye/key.git"
 homepage = "https://github.com/luckydye/key"
 
 [lib]
+name = "key"
 crate-type = ["lib", "cdylib"]
 
 [dependencies]
