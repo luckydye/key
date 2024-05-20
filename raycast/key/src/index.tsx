@@ -11,7 +11,7 @@ import {
 } from "@raycast/api";
 import { exec } from "child_process";
 import { promisify } from "util";
-import { useExec } from "@raycast/utils";
+import { useExec, getFavicon } from "@raycast/utils";
 import { useEffect, useState } from "react";
 
 type Group = {
@@ -26,7 +26,7 @@ type Entry = {
 	uuid: string;
 	title: string;
 	user: string | undefined;
-	password: string | undefined;
+	website: string | undefined;
 	has_otp: boolean;
 };
 
@@ -130,7 +130,7 @@ export default function KeyCommand() {
 					return (
 						<List.Item
 							key={`entry_${i}_${entry.uuid}`}
-							icon="key.png"
+							icon={entry.website ? getFavicon(entry.website) : "key.png"}
 							title={entry.title || "Untitled"}
 							subtitle={entry.user}
 							detail={
@@ -166,13 +166,13 @@ export default function KeyCommand() {
 										}
 									/>
 									<Action
-										icon="clipboard.png"
+										icon="clipboard.svg"
 										title="Copy Password to clipboard"
 										onAction={() => copyPasswordToClipboard(entry)}
 										shortcut={Shortcuts.Copy}
 									/>
 									<Action
-										icon="clipboard.png"
+										icon="clipboard.svg"
 										title="Paste Password"
 										onAction={() => pastePassword(entry)}
 										shortcut={Shortcuts.Paste}

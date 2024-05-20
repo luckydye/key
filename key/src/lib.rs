@@ -22,6 +22,7 @@ pub struct KeyEntry {
   uuid: String,
   title: String,
   user: Option<String>,
+  website: Option<String>,
   has_otp: bool,
 }
 
@@ -170,6 +171,7 @@ pub fn parse_node_tree(node: &Node) -> KeyNode {
       uuid: e.uuid.to_string(),
       title: e.get_title().unwrap().to_string(),
       user: e.get_username().map(str::to_string),
+      website: e.get_url().map(str::to_string),
       has_otp: e.fields.contains_key("otp"),
     }),
   }
