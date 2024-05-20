@@ -5,7 +5,12 @@ import {
 	Form,
 	Keyboard,
 	getPreferenceValues,
+	showHUD,
+	PopToRootType,
+	Clipboard
 } from "@raycast/api";
+import { exec } from "child_process";
+import { promisify } from "util";
 import { useExec } from "@raycast/utils";
 import { useEffect, useState } from "react";
 
@@ -22,9 +27,11 @@ type Entry = {
 	title: string;
 	user: string | undefined;
 	password: string | undefined;
+	has_otp: boolean;
 };
 
 type Preferences = {
+	bin: string;
 	database_url: string;
 	keyfile_path: string;
 	password: string;
@@ -41,6 +48,10 @@ const Shortcuts: Record<string, Keyboard.Shortcut> = {
 		modifiers: ["ctrl"],
 		key: "p",
 	},
+	OTP: {
+		modifiers: ["ctrl"],
+		key: "o",
+	},
 };
 
 const env = () => {
@@ -54,13 +65,19 @@ const env = () => {
 	};
 };
 
+const execp = async (command: string, options?: { env: NodeJS.ProcessEnv | undefined }): Promise<string> => {
+	const execp = promisify(exec);
+	const output = await execp(command, {
+	 env: options?.env
+	});
+	return output.stdout.trim();
+};
+
 export default function KeyCommand() {
-  const preferences = getPreferenceValues<Preferences>();
-	const cmd = useExec<string>(
-		preferences.bin,
-		["list", "--output", "json"],
-		{ env: env() },
-	);
+	const preferences = getPreferenceValues<Preferences>();
+	const cmd = useExec<string>(preferences.bin, ["list", "--output", "json"], {
+		env: env(),
+	});
 
 	const [data, setData] = useState<(Entry | Group)[]>();
 
@@ -75,7 +92,7 @@ export default function KeyCommand() {
 					return (
 						<List.Item
 							key={`entry_${i}_${entry.uuid}`}
-							icon="list-icon.png"
+							icon="key.png"
 							title={entry.title || "Untitled"}
 							subtitle={entry.user}
 							detail={
@@ -122,6 +139,21 @@ export default function KeyCommand() {
 											title="Paste Password"
 											content={entry.password}
 											shortcut={Shortcuts.Paste}
+										/>
+									)}
+									{entry.has_otp && (
+										<Action
+										  icon="otp.png"
+											title="Copy One Time Password"
+											onAction={async () => {
+												const otp = await execp(`${preferences.bin} otp ${entry.title}`, { env: env() });
+												await Clipboard.copy(otp);
+												await showHUD("Copied to clipboard", {
+													clearRootSearch: true,
+													popToRootType: PopToRootType.Immediate,
+												});
+											}}
+											shortcut={Shortcuts.OTP}
 										/>
 									)}
 								</ActionPanel>

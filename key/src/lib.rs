@@ -23,6 +23,7 @@ pub struct KeyEntry {
   title: String,
   user: Option<String>,
   password: Option<String>,
+  has_otp: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -171,6 +172,7 @@ pub fn parse_node_tree(node: &Node) -> KeyNode {
       title: e.get_title().unwrap().to_string(),
       user: e.get_username().map(str::to_string),
       password: e.get_password().map(str::to_string),
+      has_otp: e.fields.contains_key("otp"),
     }),
   }
 }
