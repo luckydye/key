@@ -33,3 +33,7 @@ run = "bun i && bun run dev"
 [tasks."app:dev"]
 dir = "app"
 run = "cargo tauri dev"
+
+[tasks.raycast]
+dir = "raycast/key"
+run = "bun i && bun run dev"
