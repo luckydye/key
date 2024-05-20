@@ -7,7 +7,7 @@ import {
 	getPreferenceValues,
 	showHUD,
 	PopToRootType,
-	Clipboard
+	Clipboard,
 } from "@raycast/api";
 import { exec } from "child_process";
 import { promisify } from "util";
@@ -65,45 +65,51 @@ const env = () => {
 	};
 };
 
-const execp = async (command: string, options?: { env: NodeJS.ProcessEnv | undefined }): Promise<string> => {
+const execp = async (
+	command: string,
+	options?: { env: NodeJS.ProcessEnv | undefined },
+): Promise<string> => {
 	const execp = promisify(exec);
 	const output = await execp(command, {
-	 env: options?.env
+		env: options?.env,
 	});
 	return output.stdout.trim();
 };
 
-const execkey = async (command: string) => {
-  const preferences = getPreferenceValues<Preferences>();
-  return await execp(`${preferences.bin} ${command}`, { env: env() });
-}
+const execkey = async (command: string, args: string[]) => {
+	const preferences = getPreferenceValues<Preferences>();
+	return await execp(
+		`${preferences.bin} ${command} ${args.map((str) => `"${str}"`).join(" ")}`,
+		{ env: env() },
+	);
+};
 
 const copyOtpToClipboard = async (entry: Entry) => {
-  const otp = await execkey(`otp ${entry.title}`);
+	const otp = await execkey("otp", [entry.title]);
 	await Clipboard.copy(otp);
 	await showHUD("Copied to clipboard", {
 		clearRootSearch: true,
 		popToRootType: PopToRootType.Immediate,
 	});
-}
+};
 
 const copyPasswordToClipboard = async (entry: Entry) => {
-  const pw = await execkey(`get ${entry.title}`);
+	const pw = await execkey("get", [entry.title]);
 	await Clipboard.copy(pw);
 	await showHUD("Copied to clipboard", {
 		clearRootSearch: true,
 		popToRootType: PopToRootType.Immediate,
 	});
-}
+};
 
 const pastePassword = async (entry: Entry) => {
-  const pw = await execkey(`get ${entry.title}`);
+	const pw = await execkey("get", [entry.title]);
 	await Clipboard.paste(pw);
 	await showHUD("Pasted Password", {
 		clearRootSearch: true,
 		popToRootType: PopToRootType.Immediate,
 	});
-}
+};
 
 export default function KeyCommand() {
 	const preferences = getPreferenceValues<Preferences>();
@@ -159,25 +165,21 @@ export default function KeyCommand() {
 											</Form>
 										}
 									/>
-									{entry.password && (
-										<Action
-								      icon="clipboard.png"
-											title="Copy Password to clipboard"
-											onAction={() => copyPasswordToClipboard(entry)}
-											shortcut={Shortcuts.Copy}
-										/>
-									)}
-									{entry.password && (
-										<Action
-								      icon="clipboard.png"
-											title="Paste Password"
-											onAction={() => pastePassword(entry)}
-											shortcut={Shortcuts.Paste}
-										/>
-									)}
+									<Action
+										icon="clipboard.png"
+										title="Copy Password to clipboard"
+										onAction={() => copyPasswordToClipboard(entry)}
+										shortcut={Shortcuts.Copy}
+									/>
+									<Action
+										icon="clipboard.png"
+										title="Paste Password"
+										onAction={() => pastePassword(entry)}
+										shortcut={Shortcuts.Paste}
+									/>
 									{entry.has_otp && (
 										<Action
-										  icon="otp.png"
+											icon="otp.png"
 											title="Copy One Time Password"
 											onAction={() => copyOtpToClipboard(entry)}
 											shortcut={Shortcuts.OTP}
