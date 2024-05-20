@@ -34,11 +34,11 @@ type Preferences = {
 
 const Shortcuts: Record<string, Keyboard.Shortcut> = {
 	Copy: {
-		modifiers: [],
+		modifiers: ["ctrl"],
 		key: "c",
 	},
 	Paste: {
-		modifiers: [],
+		modifiers: ["ctrl"],
 		key: "p",
 	},
 };
