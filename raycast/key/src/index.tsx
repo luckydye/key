@@ -142,28 +142,7 @@ export default function KeyCommand() {
 								<ActionPanel>
 									<Action.Push
 										title="Details"
-										target={
-											<Form>
-												<Form.TextField
-													id="title"
-													title="Title"
-													placeholder="Title"
-													value={entry.title || ""}
-												/>
-												<Form.TextField
-													id="user"
-													title="User"
-													placeholder="User"
-													value={entry.user || ""}
-												/>
-												<Form.PasswordField
-													id="password"
-													title="Password"
-													placeholder="Password"
-													value={entry.password || ""}
-												/>
-											</Form>
-										}
+										target={<EditForm entry={entry} />}
 									/>
 									<Action
 										icon="clipboard.svg"
@@ -192,4 +171,41 @@ export default function KeyCommand() {
 			})}
 		</List>
 	);
+}
+
+function EditForm({ entry }: { entry: Entry }) {
+  return (
+    <Form>
+			<Form.TextField
+				id="title"
+				title="Title"
+				placeholder="Title"
+				value={entry.title || ""}
+			/>
+			<Form.TextField
+				id="user"
+				title="User"
+				placeholder="User"
+				value={entry.user || ""}
+			/>
+			<Form.TextField
+				id="website"
+				title="Website"
+				placeholder="Website"
+				value={entry.website}
+			/>
+			<Form.TextArea
+				id="notes"
+				title="Notes"
+				placeholder="Notes"
+				value={entry.notes}
+			/>
+			<Form.PasswordField
+				id="password"
+				title="Password"
+				placeholder="Password"
+				value={entry.password || ""}
+			/>
+		</Form>
+  )
 }

@@ -1,5 +1,7 @@
 # key
 
+## Command Line Utility
+
 ```
 Cli to a local or remote keepass database
 
@@ -25,3 +27,15 @@ Options:
   -h, --help                           Print help
   -V, --version                        Print version
 ```
+
+## Raycast extension
+
+![./docs/raycast-screenshot.png](./docs/raycast-screenshot.png)
+
+## Desktop App
+
+Coming soon
+
+## Mobile App
+
+Coming soon
