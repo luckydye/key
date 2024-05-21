@@ -7,12 +7,12 @@ use copypasta::{ClipboardContext, ClipboardProvider};
 use demand::{DemandOption, Input, Select};
 use keepass::{db::Node, Database, DatabaseKey};
 use key::{
-  db::{get_database, write_database, KeeOptions},
+  db::{create_database, get_database, write_database, KeeOptions},
   delete_entry, get_entry, get_entry_file, get_entry_otp, rename_entry, to_json,
 };
 use key::{generate_password, set_entry};
 use log::debug;
-use std::{env, fmt, fs::File};
+use std::{env, fmt, fs::File, io::BufWriter};
 use url::Url;
 
 /// Command Line Interface to a local or remote keepass database.
@@ -65,6 +65,9 @@ enum Commands {
     #[arg(long, default_value = "18")]
     length: usize,
   },
+
+  /// Create a new database
+  Create { path: String },
 
   /// List all entries of the database
   List {
@@ -370,6 +373,18 @@ async fn command_rename(
   Ok(())
 }
 
+async fn command_create(path: &String) -> Result<()> {
+  let db = create_database()?;
+
+  let mut key = DatabaseKey::new();
+  let pw = read_password("Create a password".to_string());
+  key = key.with_password(pw.as_str());
+
+  db.save(&mut File::create(path)?, key)?;
+
+  Ok(())
+}
+
 async fn command_delete(options: &KeeOptions, name: &String) -> Result<()> {
   let key = get_database_key(&options)?;
   let mut db = get_database(&options, &key).await?;
@@ -389,6 +404,7 @@ async fn main() -> Result<()> {
   debug!("options {:?}", options);
 
   match &cli.command {
+    Some(Commands::Create { path }) => command_create(path).await,
     Some(Commands::List { output }) => {
       command_list(&options, output.as_deref().unwrap_or("text")).await
     }

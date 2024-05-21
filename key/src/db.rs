@@ -263,6 +263,10 @@ pub fn cache_dir() -> Result<PathBuf> {
   Ok(cache_dir)
 }
 
+pub fn create_database() -> Result<Database> {
+  Ok(Database::new(keepass::config::DatabaseConfig::default()))
+}
+
 pub fn cache_database(name: String, file: &Vec<u8>) -> Result<()> {
   let dir = cache_dir()?;
   let mut cache_file = File::create(dir.join(name))?;
