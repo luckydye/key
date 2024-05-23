@@ -12,7 +12,7 @@ use key::{
 };
 use key::{generate_password, set_entry};
 use log::debug;
-use std::{env, fmt, fs::File, io::BufWriter};
+use std::{env, fmt, fs::File};
 use url::Url;
 
 /// Command Line Interface to a local or remote keepass database.

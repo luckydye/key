@@ -6,10 +6,6 @@ bun = "1.1"
 _.file = '.env'
 # "RUST_LOG" = "debug"
 
-[tasks."wasm:build"]
-dir = "key"
-run = "cargo build --lib --target=wasm32-unknown-unknown --release"
-
 [tasks.cli]
 dir = "key"
 run = "cargo run --bin key"
@@ -24,9 +20,9 @@ run = "cp target/release/key $HOME/bin/key"
 
 [tasks.app]
 dir = "./"
-run = "mise run app:ui ::: app:dev"
+run = "mise run ui:dev ::: app:dev"
 
-[tasks."app:ui"]
+[tasks."ui:dev"]
 dir = "ui"
 run = "bun i && bun run dev"
 
@@ -37,3 +33,7 @@ run = "cargo tauri dev"
 [tasks.raycast]
 dir = "raycast/key"
 run = "bun i && bun run dev"
+
+[tasks."wasm:build"]
+dir = "key"
+run = "wasm-pack build --release"

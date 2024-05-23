@@ -24,9 +24,8 @@ impl From<key::Entry> for Entry {
 
 #[tauri::command]
 async fn entry(app: AppHandle, name: String) -> Result<Entry, String> {
-  let options = app.state::<KeeOptions>();
-  let key = &get_database_key(&options).unwrap();
-  let db = get_database(&options, key).await.unwrap();
+  let state = app.state::<AppState>();
+  let db = state.db.clone();
 
   if let Some(NodeRef::Entry(e)) = db.root.get(&[name.as_str()]) {
     Ok(Entry::from(e.clone()))
@@ -37,24 +36,32 @@ async fn entry(app: AppHandle, name: String) -> Result<Entry, String> {
 
 #[tauri::command]
 async fn list(app: AppHandle) -> Result<String, ()> {
-  let options = app.state::<KeeOptions>();
-  let key = &get_database_key(&options).unwrap();
-  let db = get_database(&options, key).await.unwrap();
-  let res = key::to_json(db).unwrap();
+  let state = app.state::<AppState>();
+  let res = key::to_json(state.db.clone()).unwrap();
   Ok(res)
 }
 
+struct AppState {
+  db: key::Database,
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
+pub async fn run() -> anyhow::Result<()> {
+  let options: KeeOptions = env::vars().into();
+  println!("{:?}", options);
+
+  let key = get_database_key(&options).unwrap();
+  let db = get_database(&options, &key).await.unwrap();
+
   tauri::Builder::default()
-    .setup(|app| {
-      let options: KeeOptions = env::vars().into();
-      println!("{:?}", options);
-      app.manage(options);
+    .setup(move |app| {
+      app.manage(AppState { db });
       Ok(())
     })
     .plugin(tauri_plugin_shell::init())
     .invoke_handler(tauri::generate_handler![list, entry])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
+
+  Ok(())
 }

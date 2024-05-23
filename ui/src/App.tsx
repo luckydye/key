@@ -1,5 +1,6 @@
+import * as key from "key";
 import { createSignal, createEffect } from "solid-js";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { render } from "solid-js/web";
 import "./app.css";
 
@@ -26,32 +27,40 @@ export function App() {
 		const id = selected();
 		if (!id) return;
 
-		invoke("entry", { name: id }).then((res) => {
-			setDetail(res as Entry | Group);
-		});
-	});
-
-	invoke("list").then((res) => {
-		const list = JSON.parse(res as string);
-		setList(list);
-
-		if (!selected()) {
-			setSelected(list[1].title);
+		if (isTauri()) {
+			invoke("entry", { name: id }).then((res) => {
+				setDetail(res as Entry | Group);
+			});
 		}
 	});
+
+	if (isTauri()) {
+		invoke("list").then((res) => {
+			const list = JSON.parse(res as string);
+			setList(list);
+
+			if (!selected()) {
+				setSelected(list[1].title);
+			}
+		});
+	} else {
+		key.greet();
+	}
 
 	return (
 		<div class="grid grid-cols-2 h-screen w-screen overflow-hidden">
 			<div class="p-2 h-full overflow-auto">
 				{list().map((node, i) => {
 					return (
-						<div
-							key={`entry_${i}`}
-							onClick={() => {
-								setSelected(node.title);
-							}}
-						>
-							<span>{node.title}</span>
+						<div key={`entry_${i}`}>
+							<button
+								type="button"
+								onClick={() => {
+									setSelected(node.title);
+								}}
+							>
+								<span>{node.title}</span>
+							</button>
 						</div>
 					);
 				})}

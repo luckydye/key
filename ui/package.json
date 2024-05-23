@@ -1,28 +1,30 @@
 {
-	"name": "tauri-app",
-	"version": "0.0.0",
-	"description": "",
-	"type": "module",
-	"scripts": {
-		"start": "vite",
-		"dev": "vite",
-		"build": "vite build",
-		"serve": "vite preview",
-		"tauri": "tauri"
-	},
-	"license": "MIT",
-	"dependencies": {
-		"@tailwindcss/vite": "^4.0.0-alpha.15",
-		"@tauri-apps/api": ">=2.0.0-beta.0",
-		"@tauri-apps/plugin-shell": ">=2.0.0-beta.0",
-		"solid-js": "^1.7.8",
-		"tailwindcss": "^4.0.0-alpha.15"
-	},
-	"devDependencies": {
-		"typescript": "^5.0.2",
-		"vite": "^5.0.0",
-		"vite-plugin-solid": "^2.8.0",
-		"@tauri-apps/cli": ">=2.0.0-beta.0",
-		"internal-ip": "^7.0.0"
-	}
+  "name": "tauri-app",
+  "version": "0.0.0",
+  "description": "",
+  "type": "module",
+  "scripts": {
+    "start": "vite",
+    "dev": "vite",
+    "build": "vite build",
+    "serve": "vite preview",
+    "tauri": "tauri"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@tailwindcss/vite": "^4.0.0-alpha.15",
+    "@tauri-apps/api": ">=2.0.0-beta.0",
+    "@tauri-apps/plugin-shell": ">=2.0.0-beta.0",
+    "key": "/Users/tihav/source/key/key/pkg",
+    "solid-js": "^1.7.8",
+    "tailwindcss": "^4.0.0-alpha.15",
+    "vite-plugin-wasm": "^3.3.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.2",
+    "vite": "^5.0.0",
+    "vite-plugin-solid": "^2.8.0",
+    "@tauri-apps/cli": ">=2.0.0-beta.0",
+    "internal-ip": "^7.0.0"
+  }
 }

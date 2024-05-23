@@ -1,5 +1,14 @@
 # key
 
+Interface to a local or remote keepass database for encrypted key value storage.
+
+Supported targets:
+- mac ✅
+- windows ✅
+- linux ✅
+- wasm ✅
+- browser [ ]
+
 ## Command Line Utility
 
 ```
@@ -35,8 +44,12 @@ Options:
 
 ## Desktop App
 
-Coming soon
+N/A
 
 ## Mobile App
 
-Coming soon
+N/A
+
+## Web
+
+N/A

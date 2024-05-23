@@ -11,7 +11,7 @@ homepage = "https://github.com/luckydye/key"
 
 [lib]
 name = "key"
-crate-type = ["lib", "cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 anyhow = "1.0.81"
@@ -26,9 +26,22 @@ serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.115"
 totp-rs = { version = "5.5.1", features = ["otpauth", "steam"] }
 url = "2.5.0"
+getrandom = { version = "0.2.15", features = ["js"] }
+
+# [target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = { version = "0.1.7", optional = true }
+wasm-bindgen = "0.2.84"
+wasm-bindgen-futures = "0.4.42"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 clap = { version = "4.5.3", features = ["derive", "env"] }
 tokio = "1.36.0"
 minio = "0.1.0"
 home = "0.5.9"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.34"
+
+[profile.release]
+# Tell `rustc` to optimize for small code size.
+opt-level = "s"

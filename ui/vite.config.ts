@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import solid from "vite-plugin-solid";
 import { internalIpV4 } from "internal-ip";
+import wasm from "vite-plugin-wasm";
 import tailwindcss from "@tailwindcss/vite";
 
 // @ts-expect-error process is a nodejs global
@@ -8,7 +9,7 @@ const mobile = !!/android|ios/.exec(process.env.TAURI_ENV_PLATFORM);
 
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
-	plugins: [solid(), tailwindcss()],
+	plugins: [solid(), tailwindcss(), wasm()],
 
 	clearScreen: false,
 	server: {
