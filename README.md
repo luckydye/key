@@ -7,11 +7,20 @@ Supported targets:
 - windows ✅
 - linux ✅
 - wasm ✅
+- android [ ]
+- ios [ ]
 - browser [ ]
+
+## Installation
+
+Install using cargo
+```sh
+cargo install key
+```
 
 ## Command Line Utility
 
-```
+```sh
 Cli to a local or remote keepass database
 
 Usage: key [OPTIONS] [COMMAND]
