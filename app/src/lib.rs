@@ -46,15 +46,18 @@ struct AppState {
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub async fn run() -> anyhow::Result<()> {
-  let options: KeeOptions = env::vars().into();
-  println!("{:?}", options);
-
-  let key = get_database_key(&options).unwrap();
-  let db = get_database(&options, &key).await.unwrap();
-
+pub fn run() -> anyhow::Result<()> {
   tauri::Builder::default()
     .setup(move |app| {
+      let db = tauri::async_runtime::spawn(async move {
+        // also added move here
+        let options: KeeOptions = env::vars().into();
+        println!("{:?}", options);
+
+        let key = get_database_key(&options).unwrap();
+        get_database(&options, &key).await.unwrap()
+      });
+
       app.manage(AppState { db });
       Ok(())
     })
