@@ -1,7 +1,4 @@
-use key::{
-  db::{get_database, get_database_key, KeeOptions},
-  NodeRef,
-};
+use key::NodeRef;
 use std::env;
 use tauri::{AppHandle, Manager};
 
@@ -27,22 +24,31 @@ async fn entry(app: AppHandle, name: String) -> Result<Entry, String> {
   let state = app.state::<AppState>();
   let db = state.db.clone();
 
-  if let Some(NodeRef::Entry(e)) = db.root.get(&[name.as_str()]) {
-    Ok(Entry::from(e.clone()))
-  } else {
-    Err("Cant find entry".into())
+  if let Some(db) = db {
+    if let Some(NodeRef::Entry(e)) = db.root.get(&[name.as_str()]) {
+      return Ok(Entry::from(e.clone()));
+    } else {
+      return Err("Cant find entry".into());
+    }
   }
+
+  Err("Err".into())
 }
 
 #[tauri::command]
 async fn list(app: AppHandle) -> Result<String, ()> {
   let state = app.state::<AppState>();
-  let res = key::to_json(state.db.clone()).unwrap();
-  Ok(res)
+
+  if let Some(db) = state.db.clone() {
+    let res = key::to_json(db).unwrap();
+    return Ok(res);
+  }
+
+  Err(())
 }
 
 struct AppState {
-  db: key::Database,
+  db: Option<key::Database>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -65,6 +71,4 @@ pub fn run() -> anyhow::Result<()> {
     .invoke_handler(tauri::generate_handler![list, entry])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
-
-  Ok(())
 }
