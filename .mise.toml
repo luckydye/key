@@ -20,8 +20,10 @@ depends = ["cli:build"]
 run = "cp target/release/key $HOME/bin/key"
 
 [tasks.app]
-dir = "./"
 run = "mise run ui:dev ::: app:dev"
+
+[tasks."app:android"]
+run = "mise run ui:dev ::: app:android:dev"
 
 [tasks."ui:dev"]
 dir = "ui"
@@ -30,6 +32,10 @@ run = "bun i && bun run dev"
 [tasks."app:dev"]
 dir = "app"
 run = "cargo tauri dev"
+
+[tasks."app:android:dev"]
+dir = "app"
+run = "cargo tauri android dev"
 
 [tasks.raycast]
 dir = "raycast/key"
