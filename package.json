@@ -1,6 +1,7 @@
 {
-	"private": "true",
-	"dependencies": {
-		"@biomejs/biome": "^1.7.3"
-	}
+  "private": "true",
+  "dependencies": {
+    "@atrium-ui/codestyle": "^1.0.0",
+    "@biomejs/biome": "^1.7.3"
+  }
 }

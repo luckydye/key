@@ -1,23 +1,11 @@
 {
-	"compilerOptions": {
-		"target": "ES2020",
-		"useDefineForClassFields": true,
-		"module": "ESNext",
-		"lib": ["ES2020", "DOM", "DOM.Iterable"],
-		"skipLibCheck": true,
-
-		"moduleResolution": "bundler",
-		"allowImportingTsExtensions": true,
-		"resolveJsonModule": true,
-		"isolatedModules": true,
-		"noEmit": true,
-		"jsx": "preserve",
-		"jsxImportSource": "solid-js",
-
-		"strict": true,
-		"noUnusedLocals": true,
-		"noUnusedParameters": true,
-		"noFallthroughCasesInSwitch": true
-	},
-	"include": ["src"]
+  "extends": "@atrium-ui/codestyle/tsconfig.json",
+  "compilerOptions": {
+    "jsx": "preserve",
+    "useDefineForClassFields": false,
+    "experimentalDecorators": true,
+    "types": ["@atrium-ui/elements", "vite/client"]
+  },
+  "exclude": ["node_modules", "**/dist"],
+  "include": ["src"]
 }
