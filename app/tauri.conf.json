@@ -1,7 +1,7 @@
 {
   "productName": "key",
   "version": "0.0.0",
-  "identifier": "com.key.dev",
+  "identifier": "com.luckydye.key.dev",
   "build": {
     "devUrl": "http://localhost:1420",
     "frontendDist": "../ui/dist"

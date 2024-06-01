@@ -31,12 +31,10 @@ async fn entry(app: AppHandle, name: String) -> Result<Entry, String> {
   let db = s.db.as_mut().unwrap();
 
   if let Some(NodeRef::Entry(e)) = db.root.clone().get(&[name.as_str()]) {
-    Ok(Entry::from(e.clone()))
+    return Ok(Entry::from(e.clone()));
   } else {
-    Err("Cant find entry".into())
+    return Err("Cant find entry".into());
   }
-
-  Err("Err".into())
 }
 
 #[tauri::command]
@@ -130,7 +128,7 @@ impl Default for AppState {
 impl AppState {}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub async fn run() -> anyhow::Result<()> {
+pub fn run() {
   tauri::Builder::default()
     .setup(move |app| {
       app.manage(Mutex::new(AppState::default()));
