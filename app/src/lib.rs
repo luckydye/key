@@ -35,6 +35,8 @@ async fn entry(app: AppHandle, name: String) -> Result<Entry, String> {
   } else {
     Err("Cant find entry".into())
   }
+
+  Err("Err".into())
 }
 
 #[tauri::command]
@@ -143,6 +145,4 @@ pub async fn run() -> anyhow::Result<()> {
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
-
-  Ok(())
 }

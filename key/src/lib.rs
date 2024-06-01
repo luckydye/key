@@ -3,7 +3,8 @@ mod key;
 pub use key::*;
 
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "cli")]
 pub mod db;
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(feature = "wasm")]
 pub mod wasm;

@@ -19,6 +19,5 @@ tauri = { version = "2.0.0-beta", features = [] }
 tauri-plugin-shell = "2.0.0-beta"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-key = { path = "../key" }
+key = { path = "../key", default-features = false }
 anyhow = "1.0.86"
-tokio = { version = "1.37.0", features = ["full"] }
