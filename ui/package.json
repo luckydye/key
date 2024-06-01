@@ -13,6 +13,7 @@
   "license": "MIT",
   "dependencies": {
     "@atrium-ui/elements": "^1.1.1",
+    "@luckydye/log": "^0.7.3",
     "@tailwindcss/vite": "^4.0.0-alpha.15",
     "@tauri-apps/api": ">=2.0.0-beta.0",
     "@tauri-apps/cli": ">=2.0.0-beta.0",

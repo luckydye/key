@@ -64,14 +64,12 @@ export function Filter(
   );
 }
 
-export function FilterItem(
-  props: ParentProps<{ value?: string; onClick(): void }>,
-) {
+export function FilterItem(props: ParentProps<{ value?: string; onClick(): void }>) {
   return (
     <button
       type="button"
       value={props.value}
-      class="flex w-full cursor-pointer items-center justify-start rounded-md p-1 active:bg-zinc-700 data-[selected]:bg-zinc-700 hover:bg-zinc-600 focus:ring"
+      class="flex w-full cursor-pointer items-center justify-start rounded-md p-2 px-3 active:bg-zinc-700 data-[selected]:bg-zinc-700 hover:bg-zinc-600 focus:ring"
       onClick={(e) => {
         e.currentTarget?.focus();
       }}

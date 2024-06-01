@@ -8,7 +8,7 @@ import { createSignal, type ParentProps } from "solid-js";
 
 export function Form(
   props: ParentProps<{
-    onSubmit: (data: FormData) => Promise<string> | string | undefined;
+    onSubmit: (data: FormData) => Promise<string | undefined> | string | undefined;
   }>,
 ) {
   const [error, setError] = createSignal<string>();
@@ -60,7 +60,7 @@ export function Form(
         <form onSubmit={submit} onInput={input}>
           <div class="flex flex-col gap-8">{props.children}</div>
 
-          <Button type="submit" class="mt-4 overflow-hidden">
+          <Button disabled={!!loading()} type="submit" class="mt-4 overflow-hidden">
             <a-adaptive>
               <div class="flex items-center gap-2">
                 <span>Submit</span>
