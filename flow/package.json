@@ -1,6 +1,6 @@
 {
   "name": "flow-key",
   "dependencies": {
-    "open": "^8.4.0"
+    "copy-paste": "^1.5.3"
   }
 }
