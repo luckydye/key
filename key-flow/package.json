@@ -1,0 +1,6 @@
+{
+  "name": "flow-key",
+  "dependencies": {
+    "copy-paste": "^1.5.3"
+  }
+}

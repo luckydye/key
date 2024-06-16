@@ -1,6 +1,6 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
-  "name": "key",
+  "name": "reycast-key",
   "title": "Key",
   "description": "",
   "icon": "key.png",

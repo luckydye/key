@@ -1,6 +1,7 @@
 [tools]
-bun = "1.1"
-java = "latest"
+rust = "1.75"
+bun = "1.1.13"
+node = "22"
 
 [env]
 _.file = '.env'

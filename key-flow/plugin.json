@@ -1,0 +1,12 @@
+{
+  "ID": "bc5aa4d3-3478-4334-9d5d-03371a7d73c0",
+  "ActionKeyword": "key",
+  "Name": "Key",
+  "Description": "Key Plugin",
+  "Author": "luckydye",
+  "Version": "1.0.0",
+  "Language": "javascript",
+  "Website": "https://github.com/luckydye/key",
+  "ExecuteFileName": "main.js",
+  "IcoPath": "images\\key.png"
+}
