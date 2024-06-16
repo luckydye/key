@@ -2,7 +2,7 @@ import * as key from "key";
 import { createSignal, createEffect } from "solid-js";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { render } from "solid-js/web";
-import "./app.css";
+import "./App.css";
 import { Filter, FilterItem } from "./components/Filter";
 import { Input } from "./components/Input";
 import { Form } from "./components/Form";

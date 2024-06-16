@@ -50,12 +50,11 @@ async fn set_entry_field(
 
   if let Some(NodeRef::Entry(e)) = db.root.clone().get(&[name.as_str()]) {
     let entry = Entry::from(e.clone());
-    Ok(())
   } else {
-    Err("Cant find entry".into())
+    return Err("Cant find entry".into());
   }
 
-  Err("Err".into())
+  Ok(())
 }
 
 #[tauri::command]
