@@ -54,6 +54,8 @@ async fn set_entry_field(
   } else {
     Err("Cant find entry".into())
   }
+
+  Err("Err".into())
 }
 
 #[tauri::command]
