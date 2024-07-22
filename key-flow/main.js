@@ -1,14 +1,13 @@
-const { exec } = require("child_process");
-const { promisify } = require("util");
-const cp = require("copy-paste");
+import { Flow } from 'flow-launcher-helper';
+import { exec } from "child_process";
+import { promisify } from "util";
+import cp from "copy-paste";
 
-const { method, parameters } = JSON.parse(process.argv[2]);
+const { showResult, on, run } = new Flow('app.png');
 
-const preferences = {};
+const preferences = {
 
-function send(data) {
-  console.log(JSON.stringify(data));
-}
+};
 
 async function execp(command, options) {
   const execp = promisify(exec);
@@ -35,38 +34,27 @@ function env() {
   };
 }
 
-(async () => {
-  switch (method) {
-    case "query": {
-      const data = await execkey("list", ["--output", "json"]);
-      let list = JSON.parse(data);
+on('query', async (params) => {
+  const data = await execkey("list", ["--output", "json"]);
+  let list = JSON.parse(data);
 
-      if (parameters.length === 0) {
-        list = list.filter((entry) => {
-          return entry.title.match(parameters[0]);
-        });
-      }
+  showResult(...list.filter((entry) => {
+    return entry.title.toLocaleLowerCase().includes(params[0].toLocaleLowerCase());
+  }).map((entry) => {
+    return {
+      title: entry.title,
+      subtitle: entry.user,
+      method: "copy_to_clipboard",
+      params: [entry.title],
+      iconPath: "Images\\key.png",
+    };
+  }))
+});
 
-      return send({
-        result: list.map((entry) => {
-          return {
-            Title: entry.title,
-            Subtitle: entry.user,
-            JsonRPCAction: {
-              method: "copy_to_clipboard",
-              parameters: [entry.title],
-            },
-            IcoPath: "Images\\key.png",
-          };
-        }),
-      });
-    }
+on('copy_to_clipboard', async (title) => {
+  const data = await execkey("get", [title]);
+  cp.copy(data);
+  return;
+});
 
-    case "copy_to_clipboard": {
-      const title = parameters[0];
-      const data = await execkey("get", [title]);
-      cp.copy(data);
-      return;
-    }
-  }
-})();
+run();

@@ -7,6 +7,6 @@
   "Version": "1.0.0",
   "Language": "javascript",
   "Website": "https://github.com/luckydye/key",
-  "ExecuteFileName": "main.js",
+  "ExecuteFileName": "main.mjs",
   "IcoPath": "images\\key.png"
 }
