@@ -97,7 +97,6 @@ async fn unlock(app: AppHandle, password: String) -> Result<(), String> {
 
   let mut options: KeeOptions = env::vars().into();
   options.keepassdb_password = Some(password);
-  println!("{:?}", options);
 
   let key = if let Ok(key) = get_database_key(&options) {
     key

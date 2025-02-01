@@ -1,9 +1,11 @@
 {
   "productName": "key",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "identifier": "com.luckydye.key.dev",
   "build": {
+    "beforeDevCommand": "mise run ui:dev",
     "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "mise run ui:build",
     "frontendDist": "../ui/dist"
   },
   "app": {

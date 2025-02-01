@@ -1,4 +1,3 @@
-/* @jsxImportSource solid-js */
 import { Icon } from "./Icon";
 import { type ParentProps, createEffect, createSignal } from "solid-js";
 import { twMerge } from "tailwind-merge";

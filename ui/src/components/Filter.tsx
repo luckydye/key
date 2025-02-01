@@ -1,4 +1,3 @@
-/* @jsxImportSource solid-js */
 import "@atrium-ui/elements/toggle";
 import type { Toggle } from "@atrium-ui/elements/toggle";
 import { createSignal, type ParentProps } from "solid-js";

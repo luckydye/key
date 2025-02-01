@@ -1,4 +1,3 @@
-/* @jsxImportSource solid-js */
 import { Input } from "./Input.jsx";
 import { Button } from "./Button.jsx";
 import { Checkbox } from "./Checkbox.jsx";

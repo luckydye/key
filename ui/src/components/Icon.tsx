@@ -1,4 +1,3 @@
-/* @jsxImportSource solid-js */
 import { twMerge } from "tailwind-merge";
 
 export function Icon(props: { name: keyof typeof ICONS; class?: string | string[] }) {

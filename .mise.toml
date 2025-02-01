@@ -1,6 +1,6 @@
 [tools]
-rust = "1.75"
-bun = "1.1.13"
+rust = "1.84"
+bun = "1.2"
 node = "22"
 
 [env]
@@ -28,6 +28,10 @@ run = "mise run ui:dev ::: app:android:dev"
 [tasks."ui:dev"]
 dir = "ui"
 run = "bun i && bun run dev"
+
+[tasks."ui:build"]
+dir = "ui"
+run = "bun i && bun run build"
 
 [tasks."app:dev"]
 dir = "app"

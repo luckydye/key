@@ -1,4 +1,3 @@
-/* @jsxImportSource solid-js */
 import { twMerge } from "tailwind-merge";
 import type { ParentProps } from "solid-js";
 

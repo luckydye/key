@@ -1,7 +1,9 @@
 {
-  "extends": "@atrium-ui/codestyle/tsconfig.json",
   "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
     "jsx": "preserve",
+    "jsxImportSource": "solid-js",
     "useDefineForClassFields": false,
     "experimentalDecorators": true,
     "types": ["@atrium-ui/elements", "vite/client"]

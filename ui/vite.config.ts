@@ -10,8 +10,10 @@ const mobile = !!/android|ios/.exec(process.env.TAURI_ENV_PLATFORM);
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
 	plugins: [solid(), tailwindcss(), wasm()],
-
 	clearScreen: false,
+  build: {
+    target: "esnext",
+  },
 	server: {
 		port: 1420,
 		strictPort: true,
