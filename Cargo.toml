@@ -1,6 +1,6 @@
 [workspace]
-members = ["key", "app"]
-default-members = ["key"]
+members = ["key", "key-cli", "app"]
+default-members = ["key-cli"]
 resolver = "2"
 
 [profile.release]
