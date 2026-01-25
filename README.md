@@ -34,7 +34,7 @@ Commands:
   set     Set the value of a specific entry in the database
   delete  Delete a specific entry from the database
   rename  Rename a specific entry in the database
-  choose  Chooser terminal ui
+  find    Chooser terminal ui
   help    Print this message or the help of the given subcommand(s)
 
 Options:

@@ -122,7 +122,7 @@ enum Commands {
   },
 
   /// Chooser terminal ui
-  Choose {
+  Find {
     /// Copy value to system clipboard
     #[arg(long)]
     clipboard: bool,
@@ -220,12 +220,12 @@ async fn command_list(options: &KeeOptions, format: &str) -> Result<()> {
   Ok(())
 }
 
-struct ChooseEntry {
+struct FindEntry {
   value: String,
   user: Option<String>,
 }
 
-impl fmt::Display for ChooseEntry {
+impl fmt::Display for FindEntry {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     write!(
       f,
@@ -236,16 +236,16 @@ impl fmt::Display for ChooseEntry {
   }
 }
 
-fn choose_key_ui(db: &Database) -> ChooseEntry {
-  let ms: Select<ChooseEntry> = Select::new("Keys")
+fn find_key_ui(db: &Database) -> FindEntry {
+  let ms: Select<FindEntry> = Select::new("Keys")
     .description("Select a key")
     .filterable(true);
 
-  let mut options: Vec<DemandOption<ChooseEntry>> = Vec::new();
+  let mut options: Vec<DemandOption<FindEntry>> = Vec::new();
 
   db.root.children.iter().for_each(|entry| match entry {
     Node::Entry(e) => {
-      options.push(DemandOption::new(ChooseEntry {
+      options.push(DemandOption::new(FindEntry {
         user: Some(e.get_username().unwrap_or("").to_string()),
         value: e.get_title().unwrap().to_string(),
       }));
@@ -254,7 +254,7 @@ fn choose_key_ui(db: &Database) -> ChooseEntry {
       for child in g.children.iter() {
         match child {
           Node::Entry(e) => {
-            options.push(DemandOption::new(ChooseEntry {
+            options.push(DemandOption::new(FindEntry {
               user: Some(e.get_username().unwrap_or("").to_string()),
               value: e.get_title().unwrap().to_string(),
             }));
@@ -268,7 +268,7 @@ fn choose_key_ui(db: &Database) -> ChooseEntry {
   ms.options(options).run().expect("error running select")
 }
 
-async fn command_choose(
+async fn command_find(
   options: &KeeOptions,
   field: &String,
   clipboard: &bool,
@@ -277,9 +277,9 @@ async fn command_choose(
   let db = get_database(&options, &get_database_key(&options)?).await?;
 
   let entry = if otp.to_owned() {
-    get_entry_otp(&db, &choose_key_ui(&db).value, &"otp".to_string())?
+    get_entry_otp(&db, &find_key_ui(&db).value, &"otp".to_string())?
   } else {
-    get_entry(&db, &choose_key_ui(&db).value, &field)?
+    get_entry(&db, &find_key_ui(&db).value, &field)?
   };
 
   if clipboard.to_owned() {
@@ -419,11 +419,11 @@ async fn main() -> Result<()> {
       }
       return command_get(&options, name, field, clipboard).await;
     }
-    Some(Commands::Choose {
+    Some(Commands::Find {
       clipboard,
       field,
       otp,
-    }) => command_choose(&options, field, clipboard, otp).await,
+    }) => command_find(&options, field, clipboard, otp).await,
     Some(Commands::OTP {
       name,
       field,
