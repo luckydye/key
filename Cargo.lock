@@ -2508,7 +2508,6 @@ name = "key"
 version = "1.2.7"
 dependencies = [
  "anyhow",
- "clap",
  "colored",
  "console_error_panic_hook",
  "copypasta",
@@ -2522,7 +2521,6 @@ dependencies = [
  "random-string",
  "serde",
  "serde_json",
- "tokio",
  "totp-rs",
  "url",
  "wasm-bindgen",
@@ -2537,7 +2535,6 @@ dependencies = [
  "anyhow",
  "clap",
  "colored",
- "console_error_panic_hook",
  "copypasta",
  "demand",
  "env_logger",
@@ -2553,9 +2550,6 @@ dependencies = [
  "tokio",
  "totp-rs",
  "url",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "wasm-bindgen-test",
 ]
 
 [[package]]
