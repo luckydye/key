@@ -181,7 +181,7 @@ pub fn otp(
   account: Option<String>,
 ) -> Result<String> {
   if secret.starts_with("otpauth:") {
-    let totp = TOTP::from_url_unchecked(secret).unwrap();
+    let totp = TOTP::from_url_unchecked(secret).map_err(|e| anyhow::anyhow!("{:?}", e))?;
     Ok(totp.generate_current()?)
   } else {
     let totp = TOTP::new_unchecked(

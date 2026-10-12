@@ -121,6 +121,21 @@ enum Commands {
     new_name: String,
   },
 
+  /// Choose an entry, generate a new password and set it
+  Rotate {
+    /// Length of password
+    #[arg(long, default_value = "18")]
+    length: usize,
+
+    /// Field to set
+    #[arg(long, default_value = "Password")]
+    field: String,
+
+    /// Copy value to system clipboard
+    #[arg(long)]
+    clipboard: bool,
+  },
+
   /// Chooser terminal ui
   Find {
     /// Copy value to system clipboard
@@ -292,6 +307,33 @@ async fn command_find(
   Ok(())
 }
 
+async fn command_rotate(
+  options: &KeeOptions,
+  length: &usize,
+  field: &String,
+  clipboard: &bool,
+) -> Result<()> {
+  let key = get_database_key(&options)?;
+  let mut db = get_database(&options, &key).await?;
+  let name = find_key_ui(&db).value;
+  if db.root.get(&[&name]).is_none() {
+    return Err(anyhow::format_err!("Entry {} not found", name));
+  }
+
+  let password = generate_password(length);
+  set_entry(&mut db, &name, &password, field)?;
+  write_database(&options, &mut db, &key).await?;
+
+  if clipboard.to_owned() {
+    to_clipboard(password)?;
+    println!("Copied {field} to clipboard");
+    return Ok(());
+  }
+
+  println!("{}", password);
+  Ok(())
+}
+
 fn to_clipboard(entry: String) -> Result<()> {
   let mut ctx = ClipboardContext::new().unwrap();
   ctx.set_contents(entry).unwrap();
@@ -424,6 +466,11 @@ async fn main() -> Result<()> {
       field,
       otp,
     }) => command_find(&options, field, clipboard, otp).await,
+    Some(Commands::Rotate {
+      length,
+      field,
+      clipboard,
+    }) => command_rotate(&options, length, field, clipboard).await,
     Some(Commands::OTP {
       name,
       field,
