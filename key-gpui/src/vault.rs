@@ -1,7 +1,7 @@
 use gpui::{Context, EventEmitter, SharedString, Task};
 use key::{
   db::{get_database, get_database_key, KeeOptions},
-  Database, Entry, Node, Value,
+  fields, Database, Entry, GroupRef,
 };
 
 use crate::config::DatabaseConfig;
@@ -34,7 +34,10 @@ pub struct CustomField {
   pub protected: bool,
 }
 
-const STANDARD_FIELDS: [&str; 6] = ["Title", "UserName", "Password", "URL", "Notes", "otp"];
+const TIME_FORMAT: &str = "%Y-%m-%d %H:%M";
+
+const STANDARD_FIELDS: [&str; 6] =
+  [fields::TITLE, fields::USERNAME, fields::PASSWORD, fields::URL, fields::NOTES, fields::OTP];
 
 #[derive(PartialEq)]
 pub enum Status {
@@ -92,7 +95,7 @@ impl Vault {
       let _ = this.update(cx, |vault, cx| {
         match result {
           Ok(db) => {
-            vault.entries = entry_rows(&db.root.children);
+            vault.entries = entry_rows(&db.root());
             vault.status = Status::Unlocked;
             cx.emit(Unlocked);
           }
@@ -128,33 +131,31 @@ fn open_database(options: &KeeOptions) -> anyhow::Result<Database> {
   runtime.block_on(get_database(options, &key))
 }
 
-fn entry_rows(nodes: &[Node]) -> Vec<EntryRow> {
-  nodes
-    .iter()
-    .flat_map(|node| match node {
-      Node::Group(group) => entry_rows(&group.children),
-      Node::Entry(entry) => {
-        let field = |name: &str| SharedString::from(entry.get(name).unwrap_or("").to_string());
-        let title = entry.get_title().expect("entry without title");
-        let (group, name) = split_title(title);
-        vec![EntryRow {
-          title: title.to_string().into(),
-          group,
-          name,
-          user: field("UserName"),
-          password: field("Password"),
-          website: field("URL"),
-          notes: field("Notes"),
-          otp_secret: entry.get("otp").map(|secret| secret.to_string().into()),
-          custom_fields: custom_fields(entry),
-          tags: entry.tags.iter().map(|tag| tag.clone().into()).collect(),
-          created: time(entry, "CreationTime"),
-          modified: time(entry, "LastModificationTime"),
-          expires: entry.times.expires.then(|| time(entry, "ExpiryTime")).flatten(),
-        }]
-      }
-    })
-    .collect()
+/// Entries of `group` and all its subgroups, in database order.
+fn entry_rows(group: &GroupRef) -> Vec<EntryRow> {
+  let entries = group.entries().map(|entry| {
+    let field = |name: &str| SharedString::from(entry.get(name).unwrap_or("").to_string());
+    let title = entry.get_title().expect("entry without title");
+    let (group, name) = split_title(title);
+    let times = &entry.times;
+    EntryRow {
+      title: title.to_string().into(),
+      group,
+      name,
+      user: field(fields::USERNAME),
+      password: field(fields::PASSWORD),
+      website: field(fields::URL),
+      notes: field(fields::NOTES),
+      otp_secret: entry.get(fields::OTP).map(|secret| secret.to_string().into()),
+      custom_fields: custom_fields(&entry),
+      tags: entry.tags.iter().map(|tag| tag.clone().into()).collect(),
+      created: times.creation.map(|time| time.format(TIME_FORMAT).to_string().into()),
+      modified: times.last_modification.map(|time| time.format(TIME_FORMAT).to_string().into()),
+      expires: (times.expires == Some(true))
+        .then(|| times.expiry.format(TIME_FORMAT).to_string().into()),
+    }
+  });
+  entries.chain(group.groups().flat_map(|group| entry_rows(&group))).collect()
 }
 
 fn custom_fields(entry: &Entry) -> Vec<CustomField> {
@@ -162,22 +163,14 @@ fn custom_fields(entry: &Entry) -> Vec<CustomField> {
     .fields
     .iter()
     .filter(|(name, _)| !STANDARD_FIELDS.contains(&name.as_str()))
-    .filter_map(|(name, value)| {
-      let (value, protected) = match value {
-        Value::Unprotected(value) => (value.clone(), false),
-        Value::Protected(value) => (String::from_utf8_lossy(value.unsecure()).to_string(), true),
-        // Binary values have no text form to show.
-        Value::Bytes(_) => return None,
-      };
-      Some(CustomField { name: name.clone().into(), value: value.into(), protected })
+    .map(|(name, value)| CustomField {
+      name: name.clone().into(),
+      value: value.get().clone().into(),
+      protected: value.is_protected(),
     })
     .collect();
   fields.sort_by(|a, b| a.name.cmp(&b.name));
   fields
-}
-
-fn time(entry: &Entry, key: &str) -> Option<SharedString> {
-  entry.get_time(key).map(|time| time.format("%Y-%m-%d %H:%M").to_string().into())
 }
 
 /// Splits "group/name" at the last "/". Titles without both parts have no group.

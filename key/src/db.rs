@@ -264,7 +264,7 @@ pub fn cache_dir() -> Result<PathBuf> {
 }
 
 pub fn create_database() -> Result<Database> {
-  Ok(Database::new(keepass::config::DatabaseConfig::default()))
+  Ok(Database::new())
 }
 
 pub fn cache_database(name: String, file: &Vec<u8>) -> Result<()> {

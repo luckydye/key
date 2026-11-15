@@ -5,7 +5,7 @@ pub use keepass::{Database, DatabaseKey};
 use serde::{Deserialize, Serialize};
 use totp_rs::{Algorithm, Secret, TOTP};
 
-pub use keepass::db::{Entry, Node, NodeRef, NodeRefMut, Value};
+pub use keepass::db::{fields, Entry, EntryRef, GroupRef, Value};
 
 pub static PASSWORD_CHARSET: &str =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz\
@@ -41,129 +41,68 @@ pub enum KeyNode {
 }
 
 pub fn to_json(db: Database) -> Result<String> {
-  let entries = db.root.children;
-  let nodes: Vec<KeyNode> = entries
-    .iter()
-    .map(|n| {
-      let node = parse_node_tree(n);
-      node
-    })
-    .collect();
-  Ok(serde_json::to_string(&nodes)?)
+  Ok(serde_json::to_string(&group_nodes(&db.root()))?)
 }
 
 pub fn delete_entry(db: &mut Database, name: &String) -> Result<()> {
-  let entry = db.root.get_mut(&[name]);
-  if entry.is_none() {
-    Err(anyhow::format_err!("Entry not found"))?;
-  }
-
-  let index = db
-    .root
-    .children
-    .iter()
-    .position(|n| {
-      if let Node::Entry(e) = n {
-        e.get_title().unwrap() == name
-      } else {
-        false
-      }
-    })
-    .unwrap();
-
-  db.root.children.remove(index);
-
+  let mut root = db.root_mut();
+  let entry = root.entry_by_name_mut(name).ok_or_else(|| anyhow!("Entry not found"))?;
+  entry.remove();
   Ok(())
 }
 
 pub fn rename_entry(db: &mut Database, name: &String, new_name: &String) -> Result<()> {
-  let entry = db.root.get_mut(&[name]);
-
-  if entry.is_none() {
-    Err(anyhow::format_err!("Entry not found"))?;
-  }
-
-  if let Some(NodeRefMut::Entry(entry)) = entry {
-    let title = entry.fields.get_mut("Title").unwrap();
-    *title = Value::Unprotected(new_name.clone());
-    return Ok(());
-  }
-
-  Err(anyhow!("failed to rename entry"))
+  let mut root = db.root_mut();
+  let mut entry = root.entry_by_name_mut(name).ok_or_else(|| anyhow!("Entry not found"))?;
+  entry.set_unprotected(fields::TITLE, new_name.as_str());
+  Ok(())
 }
 
+/// Sets `field` of the entry titled `name`, creating the entry when it does not exist.
 pub fn set_entry(
   db: &mut Database,
   name: &String,
   value: &String,
   field: &String,
 ) -> Result<()> {
-  let entry = db.root.get_mut(&[name]);
-
-  if entry.is_none() {
-    // add a new one
-    let mut new_entry = Entry::new();
-    new_entry
-      .fields
-      .insert("Title".to_string(), Value::Unprotected(name.to_string()));
-    new_entry
-      .fields
-      .insert(field.to_string(), Value::Protected(value.as_bytes().into()));
-    db.root.add_child(new_entry);
-
-    return Ok(());
+  let mut root = db.root_mut();
+  if root.as_ref().entry_by_name(name).is_none() {
+    root.add_entry().set_unprotected(fields::TITLE, name.as_str());
   }
-
-  if let Some(NodeRefMut::Entry(entry)) = entry {
-    let pw = entry.fields.get_mut(&field.to_string());
-
-    if pw.is_none() {
-      entry
-        .fields
-        .insert(field.to_string(), Value::Protected(value.as_bytes().into()));
-    } else if let Some(pw) = pw {
-      *pw = Value::Protected(value.as_bytes().into());
-    }
-
-    return Ok(());
-  }
-
-  Err(anyhow!("failed to set value"))
+  let mut entry = root.entry_by_name_mut(name).expect("entry was just created");
+  entry.set_protected(field.as_str(), value.as_str());
+  Ok(())
 }
 
 pub fn get_entry(db: &Database, name: &String, field: &String) -> Result<String> {
-  if let Some(NodeRef::Entry(e)) = db.root.get(&[name]) {
-    return Ok(e.get(field).unwrap().to_string());
-  }
-  Err(anyhow!("Entry not found"))
+  let root = db.root();
+  let entry = root.entry_by_name(name).ok_or_else(|| anyhow!("Entry not found"))?;
+  Ok(entry.get(field).ok_or_else(|| anyhow!("Entry has no field {field}"))?.to_string())
 }
 
 pub fn get_entry_otp(db: &Database, name: &String, field: &String) -> Result<String> {
-  if let Some(NodeRef::Entry(e)) = db.root.get(&[name]) {
-    let password = e.get(field).unwrap().to_string();
-    return Ok(otp(password, None, None)?);
-  }
-  Err(anyhow::format_err!("Entry not found or does not have otp"))
+  otp(get_entry(db, name, field)?, None, None)
 }
 
-pub fn parse_node_tree(node: &Node) -> KeyNode {
-  match node {
-    Node::Group(g) => {
-      let entries: Vec<KeyNode> = g.children.iter().map(parse_node_tree).collect();
-      KeyNode::Group(KeyGroup {
-        uuid: g.uuid.to_string(),
-        title: g.name.clone(),
-        entries,
-      })
-    }
-    Node::Entry(e) => KeyNode::Entry(KeyEntry {
-      uuid: e.uuid.to_string(),
-      title: e.get_title().unwrap().to_string(),
+/// Entries followed by subgroups of `group`, in database order.
+pub fn group_nodes(group: &GroupRef) -> Vec<KeyNode> {
+  let entries = group.entries().map(|e| {
+    KeyNode::Entry(KeyEntry {
+      uuid: e.id().uuid().to_string(),
+      title: e.get_title().expect("entry without title").to_string(),
       user: e.get_username().map(str::to_string),
       website: e.get_url().map(str::to_string),
-      has_otp: e.fields.contains_key("otp"),
-    }),
-  }
+      has_otp: e.fields.contains_key(fields::OTP),
+    })
+  });
+  let groups = group.groups().map(|g| {
+    KeyNode::Group(KeyGroup {
+      uuid: g.id().uuid().to_string(),
+      title: g.name.clone(),
+      entries: group_nodes(&g),
+    })
+  });
+  entries.chain(groups).collect()
 }
 
 pub fn otp(

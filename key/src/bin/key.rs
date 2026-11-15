@@ -5,7 +5,7 @@ use clap::{CommandFactory, Parser, Subcommand};
 use colored::Colorize;
 use copypasta::{ClipboardContext, ClipboardProvider};
 use demand::{DemandOption, Input, Select};
-use keepass::{db::Node, Database, DatabaseKey};
+use keepass::{db::EntryRef, Database, DatabaseKey};
 use key::{
   db::{create_database, get_database, write_database, KeeOptions},
   delete_entry, get_entry, get_entry_otp, rename_entry, to_json,
@@ -208,22 +208,14 @@ async fn command_list(options: &KeeOptions, format: &str) -> Result<()> {
       println!("{}", to_json(db)?);
     }
     _ => {
-      for entry in db.root.children.iter() {
-        match entry {
-          Node::Group(g) => {
-            for child in g.children.iter() {
-              match child {
-                Node::Entry(e) => {
-                  println!("{}/{}", g.name, e.get_title().unwrap().to_string());
-                }
-                _ => continue,
-              }
-            }
-          }
-          Node::Entry(e) => {
-            println!("{}", e.get_title().unwrap().to_string());
-          }
-        };
+      let root = db.root();
+      for e in root.entries() {
+        println!("{}", e.get_title().unwrap());
+      }
+      for g in root.groups() {
+        for e in g.entries() {
+          println!("{}/{}", g.name, e.get_title().unwrap());
+        }
       }
     }
   }
@@ -254,27 +246,15 @@ fn find_key_ui(db: &Database) -> FindEntry {
 
   let mut options: Vec<DemandOption<FindEntry>> = Vec::new();
 
-  db.root.children.iter().for_each(|entry| match entry {
-    Node::Entry(e) => {
-      options.push(DemandOption::new(FindEntry {
-        user: Some(e.get_username().unwrap_or("").to_string()),
-        value: e.get_title().unwrap().to_string(),
-      }));
-    }
-    Node::Group(g) => {
-      for child in g.children.iter() {
-        match child {
-          Node::Entry(e) => {
-            options.push(DemandOption::new(FindEntry {
-              user: Some(e.get_username().unwrap_or("").to_string()),
-              value: e.get_title().unwrap().to_string(),
-            }));
-          }
-          _ => continue,
-        }
-      }
-    }
-  });
+  let mut push = |e: EntryRef| {
+    options.push(DemandOption::new(FindEntry {
+      user: Some(e.get_username().unwrap_or("").to_string()),
+      value: e.get_title().unwrap().to_string(),
+    }))
+  };
+  let root = db.root();
+  root.entries().for_each(&mut push);
+  root.groups().for_each(|g| g.entries().for_each(&mut push));
 
   ms.options(options).run().expect("error running select")
 }
@@ -312,7 +292,7 @@ async fn command_rotate(
   let key = get_database_key(&options)?;
   let mut db = get_database(&options, &key).await?;
   let name = find_key_ui(&db).value;
-  if db.root.get(&[&name]).is_none() {
+  if db.root().entry_by_name(&name).is_none() {
     return Err(anyhow::format_err!("Entry {} not found", name));
   }
 
