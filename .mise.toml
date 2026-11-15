@@ -1,5 +1,5 @@
 [tools]
-rust = "1.84"
+rust = "1.99.1"
 bun = "1.2"
 node = "22"
 
@@ -20,26 +20,7 @@ depends = ["cli:build"]
 run = "cp target/release/key $HOME/bin/key"
 
 [tasks.app]
-run = "mise run ui:dev ::: app:dev"
-
-[tasks."app:android"]
-run = "mise run ui:dev ::: app:android:dev"
-
-[tasks."ui:dev"]
-dir = "ui"
-run = "bun i && bun run dev"
-
-[tasks."ui:build"]
-dir = "ui"
-run = "bun i && bun run build"
-
-[tasks."app:dev"]
-dir = "app"
-run = "cargo tauri dev"
-
-[tasks."app:android:dev"]
-dir = "app"
-run = "cargo tauri android dev"
+run = "cargo run -p key-gpui"
 
 [tasks.raycast]
 dir = "raycast/key"

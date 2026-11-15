@@ -1,5 +1,5 @@
 [workspace]
-members = ["key", "app"]
+members = ["key", "key-gpui"]
 default-members = ["key"]
 resolver = "2"
 
