@@ -2508,6 +2508,7 @@ name = "key"
 version = "1.2.7"
 dependencies = [
  "anyhow",
+ "clap",
  "colored",
  "console_error_panic_hook",
  "copypasta",
@@ -2521,35 +2522,12 @@ dependencies = [
  "random-string",
  "serde",
  "serde_json",
+ "tokio",
  "totp-rs",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
-]
-
-[[package]]
-name = "key-cli"
-version = "1.2.7"
-dependencies = [
- "anyhow",
- "clap",
- "colored",
- "copypasta",
- "demand",
- "env_logger",
- "getrandom 0.2.15",
- "home",
- "keepass",
- "key",
- "log",
- "minio",
- "random-string",
- "serde",
- "serde_json",
- "tokio",
- "totp-rs",
- "url",
 ]
 
 [[package]]

@@ -9,7 +9,7 @@ import {
   PopToRootType,
   Clipboard,
 } from "@raycast/api";
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { useExec, getFavicon } from "@raycast/utils";
 import { useEffect, useState } from "react";
@@ -74,23 +74,12 @@ const env = () => {
   };
 };
 
-const execp = async (
-  command: string,
-  options?: { env: NodeJS.ProcessEnv | undefined },
-): Promise<string> => {
-  const execp = promisify(exec);
-  const output = await execp(command, {
-    env: options?.env,
-  });
-  return output.stdout.trim();
-};
-
 const execkey = async (command: string, args: string[]) => {
   const preferences = getPreferenceValues<Preferences>();
-  return await execp(
-    `${preferences.bin} ${command} ${args.map((str) => `"${str}"`).join(" ")}`,
-    { env: env() },
-  );
+  const output = await promisify(execFile)(preferences.bin, [command, ...args], {
+    env: env(),
+  });
+  return output.stdout.trim();
 };
 
 const copyOtpToClipboard = async (entry: Entry) => {

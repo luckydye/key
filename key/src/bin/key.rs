@@ -8,7 +8,7 @@ use demand::{DemandOption, Input, Select};
 use keepass::{db::Node, Database, DatabaseKey};
 use key::{
   db::{create_database, get_database, write_database, KeeOptions},
-  delete_entry, get_entry, get_entry_file, get_entry_otp, rename_entry, to_json,
+  delete_entry, get_entry, get_entry_otp, rename_entry, to_json,
   generate_password, set_entry
 };
 use log::debug;
@@ -80,10 +80,6 @@ enum Commands {
   Get {
     /// Name of entry
     name: String,
-
-    /// Extract as file
-    #[arg(long)]
-    file: bool,
 
     /// Copy value to system clipboard
     #[arg(long)]
@@ -359,16 +355,6 @@ async fn command_get(
   Ok(())
 }
 
-async fn command_get_file(
-  options: &KeeOptions,
-  name: &String,
-  field: &String,
-) -> Result<()> {
-  let db = get_database(&options, &get_database_key(&options)?).await?;
-  get_entry_file(&db, name, field)?;
-  Ok(())
-}
-
 async fn command_otp(
   options: &KeeOptions,
   name: &String,
@@ -397,7 +383,6 @@ async fn command_set(
   let key = get_database_key(&options)?;
   let mut db = get_database(&options, &key).await?;
   set_entry(&mut db, name, value, field)?;
-  debug!("Set entry field {} to {}", field, value);
   write_database(&options, &mut db, &key).await?;
   Ok(())
 }
@@ -443,8 +428,6 @@ async fn main() -> Result<()> {
   let cli = Cli::parse();
   let options = options_from_cli(&cli)?;
 
-  debug!("options {:?}", options);
-
   match &cli.command {
     Some(Commands::Create { path }) => command_create(path).await,
     Some(Commands::List { output }) => {
@@ -453,14 +436,8 @@ async fn main() -> Result<()> {
     Some(Commands::Get {
       name,
       field,
-      file,
       clipboard,
-    }) => {
-      if file.clone() == true {
-        return command_get_file(&options, name, field).await;
-      }
-      return command_get(&options, name, field, clipboard).await;
-    }
+    }) => command_get(&options, name, field, clipboard).await,
     Some(Commands::Find {
       clipboard,
       field,
