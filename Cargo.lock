@@ -3681,7 +3681,10 @@ dependencies = [
  "gpui-kit-assets",
  "gpui-pre",
  "gpui-pre-platform",
+ "home",
  "key",
+ "serde",
+ "serde_json",
  "tokio",
 ]
 

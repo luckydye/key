@@ -1,8 +1,10 @@
-use gpui::{Context, EventEmitter, SharedString};
+use gpui::{Context, EventEmitter, SharedString, Task};
 use key::{
   db::{get_database, get_database_key, KeeOptions},
   Database, Node,
 };
+
+use crate::config::DatabaseConfig;
 
 #[derive(Clone)]
 pub struct EntryRow {
@@ -11,6 +13,7 @@ pub struct EntryRow {
   pub password: SharedString,
   pub website: SharedString,
   pub notes: SharedString,
+  pub otp_secret: Option<SharedString>,
 }
 
 #[derive(PartialEq)]
@@ -23,17 +26,36 @@ pub enum Status {
 pub struct Unlocked;
 
 pub struct Vault {
-  pub options: KeeOptions,
+  pub config: DatabaseConfig,
+  /// Configured through environment variables instead of the config file.
+  pub from_env: bool,
   pub status: Status,
   pub error: Option<SharedString>,
   pub entries: Vec<EntryRow>,
+  /// The pending unlock; dropping it cancels the unlock.
+  pub unlocking: Option<Task<()>>,
 }
 
 impl EventEmitter<Unlocked> for Vault {}
 
 impl Vault {
-  pub fn new(options: KeeOptions) -> Self {
-    Self { options, status: Status::Locked, error: None, entries: Vec::new() }
+  pub fn new(config: DatabaseConfig, from_env: bool) -> Self {
+    Self {
+      config,
+      from_env,
+      status: Status::Locked,
+      error: None,
+      entries: Vec::new(),
+      unlocking: None,
+    }
+  }
+
+  pub fn lock(&mut self, cx: &mut Context<Self>) {
+    self.unlocking = None;
+    self.status = Status::Locked;
+    self.error = None;
+    self.entries = Vec::new();
+    cx.notify();
   }
 
   pub fn unlock(&mut self, password: String, cx: &mut Context<Self>) {
@@ -42,17 +64,11 @@ impl Vault {
     self.error = None;
     cx.notify();
 
-    let options = KeeOptions {
-      keepassdb: self.options.keepassdb.clone(),
-      keepassdb_keyfile: self.options.keepassdb_keyfile.clone(),
-      keepassdb_password: Some(password),
-      s3_access_key: self.options.s3_access_key.clone(),
-      s3_secret_key: self.options.s3_secret_key.clone(),
-    };
+    let options = self.config.options(password);
     let task = cx.background_executor().spawn(async move { open_database(&options) });
-    cx.spawn(async move |this, cx| {
+    self.unlocking = Some(cx.spawn(async move |this, cx| {
       let result = task.await;
-      // Fails only when the vault was dropped, i.e. the window closed meanwhile.
+      // Fails only when the vault was dropped, i.e. the database was removed meanwhile.
       let _ = this.update(cx, |vault, cx| {
         match result {
           Ok(db) => {
@@ -67,8 +83,7 @@ impl Vault {
         }
         cx.notify();
       });
-    })
-    .detach();
+    }));
   }
 
   pub fn search(&self, query: &str) -> Vec<EntryRow> {
@@ -103,6 +118,7 @@ fn entry_rows(nodes: &[Node]) -> Vec<EntryRow> {
           password: field("Password"),
           website: field("URL"),
           notes: field("Notes"),
+          otp_secret: entry.get("otp").map(|secret| secret.to_string().into()),
         }]
       }
     })
