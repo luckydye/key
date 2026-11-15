@@ -1,7 +1,7 @@
 use gpui::{Context, EventEmitter, SharedString, Task};
 use key::{
   db::{get_database, get_database_key, KeeOptions},
-  Database, Node,
+  Database, Entry, Node, Value,
 };
 
 use crate::config::DatabaseConfig;
@@ -14,7 +14,23 @@ pub struct EntryRow {
   pub website: SharedString,
   pub notes: SharedString,
   pub otp_secret: Option<SharedString>,
+  /// Fields besides the standard ones above, sorted by name.
+  pub custom_fields: Vec<CustomField>,
+  pub tags: Vec<SharedString>,
+  pub created: Option<SharedString>,
+  pub modified: Option<SharedString>,
+  /// Set only when the entry is marked to expire.
+  pub expires: Option<SharedString>,
 }
+
+#[derive(Clone)]
+pub struct CustomField {
+  pub name: SharedString,
+  pub value: SharedString,
+  pub protected: bool,
+}
+
+const STANDARD_FIELDS: [&str; 6] = ["Title", "UserName", "Password", "URL", "Notes", "otp"];
 
 #[derive(PartialEq)]
 pub enum Status {
@@ -119,8 +135,36 @@ fn entry_rows(nodes: &[Node]) -> Vec<EntryRow> {
           website: field("URL"),
           notes: field("Notes"),
           otp_secret: entry.get("otp").map(|secret| secret.to_string().into()),
+          custom_fields: custom_fields(entry),
+          tags: entry.tags.iter().map(|tag| tag.clone().into()).collect(),
+          created: time(entry, "CreationTime"),
+          modified: time(entry, "LastModificationTime"),
+          expires: entry.times.expires.then(|| time(entry, "ExpiryTime")).flatten(),
         }]
       }
     })
     .collect()
+}
+
+fn custom_fields(entry: &Entry) -> Vec<CustomField> {
+  let mut fields: Vec<CustomField> = entry
+    .fields
+    .iter()
+    .filter(|(name, _)| !STANDARD_FIELDS.contains(&name.as_str()))
+    .filter_map(|(name, value)| {
+      let (value, protected) = match value {
+        Value::Unprotected(value) => (value.clone(), false),
+        Value::Protected(value) => (String::from_utf8_lossy(value.unsecure()).to_string(), true),
+        // Binary values have no text form to show.
+        Value::Bytes(_) => return None,
+      };
+      Some(CustomField { name: name.clone().into(), value: value.into(), protected })
+    })
+    .collect();
+  fields.sort_by(|a, b| a.name.cmp(&b.name));
+  fields
+}
+
+fn time(entry: &Entry, key: &str) -> Option<SharedString> {
+  entry.get_time(key).map(|time| time.format("%Y-%m-%d %H:%M").to_string().into())
 }

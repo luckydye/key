@@ -171,11 +171,14 @@ pub fn otp(
   issuer: Option<String>,
   account: Option<String>,
 ) -> Result<String> {
+  Ok(totp(secret, issuer, account)?.generate_current()?)
+}
+
+pub fn totp(secret: String, issuer: Option<String>, account: Option<String>) -> Result<TOTP> {
   if secret.starts_with("otpauth:") {
-    let totp = TOTP::from_url_unchecked(secret).map_err(|e| anyhow::anyhow!("{:?}", e))?;
-    Ok(totp.generate_current()?)
+    TOTP::from_url_unchecked(secret).map_err(|e| anyhow::anyhow!("{:?}", e))
   } else {
-    let totp = TOTP::new_unchecked(
+    Ok(TOTP::new_unchecked(
       Algorithm::SHA1,
       6,
       1,
@@ -183,8 +186,7 @@ pub fn otp(
       Secret::Encoded(secret).to_bytes()?,
       issuer,
       account.or(Some("".to_string())).unwrap(),
-    );
-    Ok(totp.generate_current()?)
+    ))
   }
 }
 

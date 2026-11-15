@@ -5,9 +5,12 @@ use gpui::{
   Window,
 };
 use gpui_component::{
+  clipboard::Clipboard,
   h_flex,
   input::{Input, InputEvent, InputState, MoveDown, MoveUp, Textarea, TextareaState},
-  v_flex, ActiveTheme,
+  progress::ProgressCircle,
+  tag::Tag,
+  v_flex, ActiveTheme, Sizable,
 };
 
 use crate::vault::{EntryRow, Vault};
@@ -20,7 +23,11 @@ pub struct EntryBrowser {
   pub secret: Entity<InputState>,
   pub website: Entity<InputState>,
   pub otp: Entity<InputState>,
+  /// Current code of the selected entry with its validity, `None` without a valid otp secret.
+  pub otp_code: Option<OtpCode>,
   pub notes: Entity<TextareaState>,
+  /// One input per custom field of the selected entry, in the same order.
+  pub custom_fields: Vec<Entity<InputState>>,
   pub selected: usize,
   pub list_scroll: ScrollHandle,
   pub _subscriptions: Vec<Subscription>,
@@ -58,7 +65,9 @@ impl EntryBrowser {
       secret,
       website,
       otp,
+      otp_code: None,
       notes,
+      custom_fields: Vec::new(),
       selected: 0,
       list_scroll: ScrollHandle::new(),
       _subscriptions: subscriptions,
@@ -84,6 +93,16 @@ impl EntryBrowser {
     self.secret.update(cx, |input, cx| input.set_value(secret, window, cx));
     self.website.update(cx, |input, cx| input.set_value(website, window, cx));
     self.notes.update(cx, |input, cx| input.set_value(notes, window, cx));
+    self.custom_fields = entry
+      .map(|entry| entry.custom_fields.clone())
+      .unwrap_or_default()
+      .into_iter()
+      .map(|field| {
+        let input = cx.new(|cx| InputState::new(window, cx).masked(field.protected));
+        input.update(cx, |input, cx| input.set_value(field.value, window, cx));
+        input
+      })
+      .collect();
     self.refresh_otp(window, cx);
     self.list_scroll.scroll_to_item(self.selected);
     cx.notify();
@@ -94,14 +113,30 @@ impl EntryBrowser {
     let Some(secret) = secret else {
       return;
     };
-    let code: SharedString = match key::otp(secret.to_string(), None, None) {
-      Ok(code) => code.into(),
-      Err(err) => format!("{err:#}").into(),
+    let code = key::totp(secret.to_string(), None, None).and_then(|totp| {
+      Ok(OtpCode { code: totp.generate_current()?.into(), ttl: totp.ttl()?, period: totp.step })
+    });
+    let (text, code): (SharedString, _) = match code {
+      Ok(code) => (code.code.clone(), Some(code)),
+      Err(err) => (format!("{err:#}").into(), None),
     };
-    if self.otp.read(cx).value() != code {
-      self.otp.update(cx, |input, cx| input.set_value(code, window, cx));
+    if self.otp_code != code {
+      self.otp_code = code;
+      cx.notify();
+    }
+    if self.otp.read(cx).value() != text {
+      self.otp.update(cx, |input, cx| input.set_value(text, window, cx));
     }
   }
+}
+
+#[derive(PartialEq)]
+pub struct OtpCode {
+  pub code: SharedString,
+  /// Seconds until the code rotates.
+  pub ttl: u64,
+  /// Seconds a code is valid.
+  pub period: u64,
 }
 
 impl Render for EntryBrowser {
@@ -121,10 +156,42 @@ impl Render for EntryBrowser {
         .child(div().text_xs().text_color(theme.muted_foreground).child(entry.user.clone()))
         .on_click(cx.listener(move |this, _, window, cx| this.select(index, window, cx)))
     });
-    let label = |text: &'static str| div().text_sm().text_color(theme.muted_foreground).child(text);
     let selected = results.get(self.selected);
     let title = selected.map(|entry| entry.title.clone());
     let has_otp = selected.is_some_and(|entry| entry.otp_secret.is_some());
+    let tags = selected.map(|entry| entry.tags.clone()).unwrap_or_default();
+    let custom_fields = selected
+      .map(|entry| entry.custom_fields.iter().zip(&self.custom_fields))
+      .into_iter()
+      .flatten()
+      .map(|(field, input)| {
+        v_flex()
+          .gap_2()
+          .child(label(field.name.clone(), cx))
+          .child(Input::new(input).readonly(true).when(field.protected, Input::mask_toggle))
+      });
+    let times = selected.map(|entry| {
+      [("Created", &entry.created), ("Modified", &entry.modified), ("Expires", &entry.expires)]
+        .into_iter()
+        .filter_map(|(name, time)| time.as_ref().map(|time| format!("{name} {time}")))
+        .collect::<Vec<_>>()
+        .join("  ·  ")
+    });
+    let otp_suffix = self.otp_code.as_ref().map(|otp| {
+      let color = if otp.ttl <= 5 { theme.danger } else { theme.progress_bar };
+      h_flex()
+        .gap_2()
+        .child(
+          div().text_xs().text_color(theme.muted_foreground).child(format!("{}s", otp.ttl)),
+        )
+        .child(
+          ProgressCircle::new("otp-ttl")
+            .small()
+            .color(color)
+            .value(otp.ttl as f32 / otp.period as f32 * 100.),
+        )
+        .child(Clipboard::new("otp-copy").value(otp.code.clone()).tooltip("Copy code"))
+    });
 
     h_flex()
       .size_full()
@@ -158,20 +225,37 @@ impl Render for EntryBrowser {
         v_flex()
           .flex_1()
           .h_full()
+          .id("details")
+          .overflow_y_scroll()
           .p_4()
           .gap_2()
-          .children(title.map(|title| div().text_lg().pb_2().child(title)))
-          .child(label("User"))
+          .children(title.map(|title| div().text_lg().child(title)))
+          .when(!tags.is_empty(), |details| {
+            details.child(
+              h_flex().flex_wrap().gap_1().children(tags.into_iter().map(|t| Tag::new().child(t))),
+            )
+          })
+          .child(label("User", cx))
           .child(Input::new(&self.user).readonly(true))
-          .child(label("Password"))
+          .child(label("Password", cx))
           .child(Input::new(&self.secret).mask_toggle().readonly(true))
           .when(has_otp, |details| {
-            details.child(label("OTP")).child(Input::new(&self.otp).readonly(true))
+            details
+              .child(label("OTP", cx))
+              .child(Input::new(&self.otp).readonly(true).when_some(otp_suffix, Input::suffix))
           })
-          .child(label("Website"))
+          .child(label("Website", cx))
           .child(Input::new(&self.website).readonly(true))
-          .child(label("Notes"))
-          .child(Textarea::new(&self.notes).readonly(true)),
+          .child(label("Notes", cx))
+          .child(Textarea::new(&self.notes).readonly(true))
+          .children(custom_fields)
+          .children(
+            times.map(|times| div().pt_2().text_xs().text_color(theme.muted_foreground).child(times)),
+          ),
       )
   }
+}
+
+fn label(text: impl Into<SharedString>, cx: &App) -> impl IntoElement {
+  div().text_sm().text_color(cx.theme().muted_foreground).child(text.into())
 }
