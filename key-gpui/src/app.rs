@@ -135,6 +135,7 @@ impl KeyApp {
     let (library, selected, app) = (self.library.clone(), self.selected.clone(), cx.entity());
     Button::new("switch-database")
       .ghost()
+      .small()
       .icon(IconName::Database)
       .label(name)
       .child(Icon::new(IconName::ChevronsUpDown).xsmall().text_color(cx.theme().muted_foreground))
@@ -166,14 +167,14 @@ impl KeyApp {
     let configurable = state.is_some_and(|state| !state.from_env);
     let (lock_vault, settings_vault) = (vault.clone(), vault);
     TitleBar::new()
-      .pr_2()
+      .pr_3()
       .child(self.render_switcher(cx))
       .child(
         h_flex()
           .gap_1()
           .when(configurable, |buttons| {
             buttons.child(
-              Button::new("settings").ghost().icon(IconName::Settings).tooltip("Database settings").on_click(
+              Button::new("settings").ghost().small().icon(IconName::Settings).tooltip("Database settings").on_click(
                 cx.listener(move |this, _, window, cx| {
                   this.settings(settings_vault.clone(), window, cx)
                 }),
@@ -181,7 +182,7 @@ impl KeyApp {
             )
           })
           .when(unlocked, |buttons| {
-            buttons.child(Button::new("lock").ghost().icon(IconName::Lock).label("Lock").on_click(
+            buttons.child(Button::new("lock").ghost().small().icon(IconName::Lock).label("Lock").on_click(
               cx.listener(move |_, _, _, cx| {
                 let vault = lock_vault.as_ref().expect("lock without a database");
                 vault.update(cx, |vault, cx| vault.lock(cx))
