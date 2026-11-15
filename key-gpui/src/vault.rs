@@ -9,6 +9,10 @@ use crate::config::DatabaseConfig;
 #[derive(Clone)]
 pub struct EntryRow {
   pub title: SharedString,
+  /// Title part before the last "/", e.g. "work/aws" for "work/aws/prod".
+  pub group: Option<SharedString>,
+  /// Title part after the last "/", the whole title without a group.
+  pub name: SharedString,
   pub user: SharedString,
   pub password: SharedString,
   pub website: SharedString,
@@ -104,14 +108,17 @@ impl Vault {
 
   pub fn search(&self, query: &str) -> Vec<EntryRow> {
     let query = query.to_lowercase();
-    self
+    let mut results = self
       .entries
       .iter()
       .filter(|e| {
         e.title.to_lowercase().contains(&query) || e.user.to_lowercase().contains(&query)
       })
       .cloned()
-      .collect()
+      .collect::<Vec<_>>();
+    // Stable, so entries keep their database order within a group.
+    results.sort_by(|a, b| a.group.cmp(&b.group));
+    results
   }
 }
 
@@ -128,8 +135,12 @@ fn entry_rows(nodes: &[Node]) -> Vec<EntryRow> {
       Node::Group(group) => entry_rows(&group.children),
       Node::Entry(entry) => {
         let field = |name: &str| SharedString::from(entry.get(name).unwrap_or("").to_string());
+        let title = entry.get_title().expect("entry without title");
+        let (group, name) = split_title(title);
         vec![EntryRow {
-          title: entry.get_title().expect("entry without title").to_string().into(),
+          title: title.to_string().into(),
+          group,
+          name,
           user: field("UserName"),
           password: field("Password"),
           website: field("URL"),
@@ -167,4 +178,14 @@ fn custom_fields(entry: &Entry) -> Vec<CustomField> {
 
 fn time(entry: &Entry, key: &str) -> Option<SharedString> {
   entry.get_time(key).map(|time| time.format("%Y-%m-%d %H:%M").to_string().into())
+}
+
+/// Splits "group/name" at the last "/". Titles without both parts have no group.
+fn split_title(title: &str) -> (Option<SharedString>, SharedString) {
+  match title.rsplit_once('/').map(|(group, name)| (group.trim(), name.trim())) {
+    Some((group, name)) if !group.is_empty() && !name.is_empty() => {
+      (Some(group.to_string().into()), name.to_string().into())
+    }
+    _ => (None, title.to_string().into()),
+  }
 }

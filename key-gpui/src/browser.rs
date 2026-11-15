@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use gpui::{
-  div, prelude::*, px, App, Context, Entity, ScrollHandle, SharedString, Subscription, Task,
-  Window,
+  div, prelude::*, px, App, Context, Entity, FontWeight, ScrollHandle, SharedString,
+  Subscription, Task, Window,
 };
 use gpui_component::{
   clipboard::Clipboard,
@@ -144,17 +144,33 @@ impl Render for EntryBrowser {
     let results = self.results(cx);
     let theme = cx.theme();
     let rows = results.iter().enumerate().map(|(index, entry)| {
-      div()
-        .id(index)
-        .px_3()
-        .py_1()
-        .rounded_md()
-        .cursor_pointer()
-        .when(index == self.selected, |row| row.bg(theme.list_active))
-        .hover(|row| row.bg(theme.list_hover))
-        .child(entry.title.clone())
-        .child(div().text_xs().text_color(theme.muted_foreground).child(entry.user.clone()))
-        .on_click(cx.listener(move |this, _, window, cx| this.select(index, window, cx)))
+      let previous_group = index.checked_sub(1).map(|previous| &results[previous].group);
+      // The header lives inside the group's first row, keeping one list child per entry for scrolling.
+      let header = entry.group.clone().filter(|_| previous_group != Some(&entry.group));
+      v_flex()
+        .children(header.map(|group| {
+          div()
+            .px_3()
+            .pt_3()
+            .pb_1()
+            .text_xs()
+            .font_weight(FontWeight::SEMIBOLD)
+            .text_color(theme.muted_foreground)
+            .child(group)
+        }))
+        .child(
+          div()
+            .id(index)
+            .px_3()
+            .py_1()
+            .rounded_md()
+            .cursor_pointer()
+            .when(index == self.selected, |row| row.bg(theme.list_active))
+            .hover(|row| row.bg(theme.list_hover))
+            .child(entry.name.clone())
+            .child(div().text_xs().text_color(theme.muted_foreground).child(entry.user.clone()))
+            .on_click(cx.listener(move |this, _, window, cx| this.select(index, window, cx))),
+        )
     });
     let selected = results.get(self.selected);
     let title = selected.map(|entry| entry.title.clone());
