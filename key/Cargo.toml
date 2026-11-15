@@ -13,8 +13,20 @@ homepage = "https://github.com/luckydye/key"
 name = "key"
 crate-type = ["cdylib", "rlib"]
 
+[[bin]]
+name = "key"
+required-features = ["cli"]
+
 [features]
-default = ["wasm"]
+default = ["cli", "wasm"]
+cli = [
+    "dep:clap",
+    "dep:tokio",
+    "dep:colored",
+    "dep:copypasta",
+    "dep:demand",
+    "dep:env_logger",
+]
 wasm = [
     "dep:console_error_panic_hook",
     "dep:wasm-bindgen",
@@ -23,10 +35,10 @@ wasm = [
 
 [dependencies]
 anyhow = "1.0.81"
-colored = "2.1.0"
-copypasta = "0.10.1"
-demand = "1.1.0"
-env_logger = "0.11.3"
+colored = { version = "2.1.0", optional = true }
+copypasta = { version = "0.10.1", optional = true }
+demand = { version = "1.1.0", optional = true }
+env_logger = { version = "0.11.3", optional = true }
 keepass = { version = "0.7.7", features = ["save_kdbx4", "serialization"] }
 log = "0.4.21"
 random-string = "1.1.0"
@@ -40,6 +52,8 @@ home = { version = "0.5.9" }
 console_error_panic_hook = { version = "0.1.7", optional = true }
 wasm-bindgen = { version = "0.2.84", optional = true }
 wasm-bindgen-futures = { version = "0.4.42", optional = true }
+clap = { version = "4.5.3", features = ["derive", "env"], optional = true }
+tokio = { version = "1.36.0", features = ["full"], optional = true }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.34"
