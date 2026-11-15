@@ -1,5 +1,5 @@
 use gpui::{
-  div, prelude::*, px, AnyElement, Context, Entity, EventEmitter, PathPromptOptions,
+  div, prelude::*, px, AnyElement, Context, Entity, EventEmitter, FontWeight, PathPromptOptions,
   PromptLevel, SharedString, Subscription, Window,
 };
 use gpui_component::{
@@ -175,12 +175,13 @@ impl Render for DatabaseSettings {
       v_flex().gap_1().child(div().text_sm().text_color(muted).child(label)).child(input)
     };
 
-    v_flex()
-      .size_full()
+    v_flex().id("settings").size_full().overflow_y_scroll().items_center().child(
+      v_flex()
+      .w_full()
       .p_6()
       .gap_4()
       .max_w(px(560.))
-      .child(div().text_lg().child(if self.is_new { "New database" } else { "Database settings" }))
+      .child(div().text_xl().font_weight(FontWeight::SEMIBOLD).child(if self.is_new { "New database" } else { "Database settings" }))
       .child(field("Name", Input::new(&self.name).into_any_element()))
       .child(field(
         "Database URL",
@@ -222,6 +223,7 @@ impl Render for DatabaseSettings {
                 .on_click(cx.listener(|this, _, window, cx| this.remove(window, cx))),
             )
           }),
-      )
+      ),
+    )
   }
 }

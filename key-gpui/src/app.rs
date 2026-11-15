@@ -1,8 +1,11 @@
-use gpui::{div, prelude::*, px, AnyElement, Context, Entity, Subscription, Window};
+use gpui::{div, prelude::*, px, AnyElement, Context, Entity, SharedString, Subscription, Window};
 use gpui_component::{
   button::{Button, ButtonVariants},
-  h_flex, v_flex, ActiveTheme,
+  h_flex,
+  menu::{DropdownMenu, PopupMenuItem},
+  v_flex, ActiveTheme, Icon, Sizable, TitleBar,
 };
+use gpui_kit_assets::IconName;
 
 use crate::{
   browser::EntryBrowser,
@@ -19,7 +22,7 @@ pub enum Screen {
   Settings(Entity<DatabaseSettings>),
 }
 
-/// Database list on the left, the selected database on the right.
+/// The selected database below a header to switch databases.
 pub struct KeyApp {
   pub library: Entity<Library>,
   pub selected: Option<Entity<Vault>>,
@@ -123,74 +126,65 @@ impl KeyApp {
     }
   }
 
-  pub fn render_sidebar(&self, cx: &mut Context<Self>) -> impl IntoElement {
-    let theme = cx.theme();
-    let rows = self.library.read(cx).vaults.iter().enumerate().map(|(index, vault)| {
-      let state = vault.read(cx);
-      let status = match state.status {
-        Status::Locked => "Locked",
-        Status::Unlocking => "Unlocking…",
-        Status::Unlocked => "Unlocked",
-      };
-      let status = if state.from_env { format!("{status} · from env") } else { status.into() };
-      let vault = vault.clone();
-      div()
-        .id(index)
-        .px_3()
-        .py_1()
-        .rounded_md()
-        .cursor_pointer()
-        .when(self.selected.as_ref() == Some(&vault), |row| row.bg(theme.list_active))
-        .hover(|row| row.bg(theme.list_hover))
-        .child(state.config.name.clone())
-        .child(div().text_xs().text_color(theme.muted_foreground).child(status))
-        .on_click(cx.listener(move |this, _, window, cx| this.open(vault.clone(), window, cx)))
-    });
-
-    v_flex()
-      .w(px(200.))
-      .h_full()
-      .p_2()
-      .gap_1()
-      .border_r_1()
-      .border_color(theme.border)
-      .child(div().px_3().py_1().text_xs().text_color(theme.muted_foreground).child("Databases"))
-      .children(rows)
-      .child(div().flex_1())
-      .child(
-        Button::new("add-database")
-          .ghost()
-          .label("Add database")
-          .on_click(cx.listener(|this, _, window, cx| this.settings(None, window, cx))),
-      )
+  /// Button naming the current database, opening a menu to switch or add databases.
+  pub fn render_switcher(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    let name: SharedString = match &self.selected {
+      Some(vault) => vault.read(cx).config.name.clone().into(),
+      None => "New database".into(),
+    };
+    let (library, selected, app) = (self.library.clone(), self.selected.clone(), cx.entity());
+    Button::new("switch-database")
+      .ghost()
+      .icon(IconName::Database)
+      .label(name)
+      .child(Icon::new(IconName::ChevronsUpDown).xsmall().text_color(cx.theme().muted_foreground))
+      .dropdown_menu(move |menu, _, cx| {
+        let vaults = library.read(cx).vaults.clone();
+        let menu = vaults.into_iter().fold(menu.min_w(px(220.)), |menu, vault| {
+          let app = app.clone();
+          let checked = selected.as_ref() == Some(&vault);
+          menu.item(
+            PopupMenuItem::new(vault.read(cx).config.name.clone()).checked(checked).on_click(
+              move |_, window, cx| app.update(cx, |app, cx| app.open(vault.clone(), window, cx)),
+            ),
+          )
+        });
+        let app = app.clone();
+        menu.separator().item(
+          PopupMenuItem::new("Add database…")
+            .icon(IconName::Plus)
+            .on_click(move |_, window, cx| app.update(cx, |app, cx| app.settings(None, window, cx))),
+        )
+      })
   }
 
-  pub fn render_header(&self, vault: &Entity<Vault>, cx: &mut Context<Self>) -> impl IntoElement {
-    let state = vault.read(cx);
-    let unlocked = state.status == Status::Unlocked;
-    let from_env = state.from_env;
-    let lock_vault = vault.clone();
-    let settings_vault = vault.clone();
-    h_flex()
-      .justify_between()
-      .px_4()
-      .py_2()
-      .border_b_1()
-      .border_color(cx.theme().border)
-      .child(div().text_lg().child(state.config.name.clone()))
+  pub fn render_header(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    let vault = self.selected.clone().filter(|_| !matches!(self.screen, Screen::Settings(_)));
+    let state = vault.as_ref().map(|vault| vault.read(cx));
+    let unlocked = state.is_some_and(|state| state.status == Status::Unlocked);
+    // Environment databases are configured outside the app.
+    let configurable = state.is_some_and(|state| !state.from_env);
+    let (lock_vault, settings_vault) = (vault.clone(), vault);
+    TitleBar::new()
+      .pr_2()
+      .child(self.render_switcher(cx))
       .child(
         h_flex()
-          .gap_2()
-          .when(unlocked, |buttons| {
-            buttons.child(Button::new("lock").ghost().label("Lock").on_click(cx.listener(
-              move |_, _, _, cx| lock_vault.update(cx, |vault, cx| vault.lock(cx)),
-            )))
+          .gap_1()
+          .when(configurable, |buttons| {
+            buttons.child(
+              Button::new("settings").ghost().icon(IconName::Settings).tooltip("Database settings").on_click(
+                cx.listener(move |this, _, window, cx| {
+                  this.settings(settings_vault.clone(), window, cx)
+                }),
+              ),
+            )
           })
-          // Environment databases are configured outside the app.
-          .when(!from_env, |buttons| {
-            buttons.child(Button::new("settings").ghost().label("Settings").on_click(
-              cx.listener(move |this, _, window, cx| {
-                this.settings(Some(settings_vault.clone()), window, cx)
+          .when(unlocked, |buttons| {
+            buttons.child(Button::new("lock").ghost().icon(IconName::Lock).label("Lock").on_click(
+              cx.listener(move |_, _, _, cx| {
+                let vault = lock_vault.as_ref().expect("lock without a database");
+                vault.update(cx, |vault, cx| vault.lock(cx))
               }),
             ))
           }),
@@ -216,11 +210,11 @@ impl KeyApp {
 
 impl Render for KeyApp {
   fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-    let header = match (&self.screen, &self.selected) {
-      (Screen::Unlock(_) | Screen::Browse(_), Some(vault)) => {
-        Some(self.render_header(vault, cx))
-      }
-      _ => None,
+    let has_databases = !self.library.read(cx).vaults.is_empty();
+    let header = match has_databases {
+      true => self.render_header(cx).into_any_element(),
+      // Still draws the window controls and a drag area.
+      false => TitleBar::new().into_any_element(),
     };
     let body = match &self.screen {
       Screen::Empty => self.render_empty(cx),
@@ -228,11 +222,11 @@ impl Render for KeyApp {
       Screen::Browse(view) => view.clone().into_any_element(),
       Screen::Settings(view) => view.clone().into_any_element(),
     };
-    h_flex()
+    v_flex()
       .size_full()
       .bg(cx.theme().background)
       .text_color(cx.theme().foreground)
-      .child(self.render_sidebar(cx))
-      .child(v_flex().flex_1().h_full().children(header).child(div().flex_1().min_h_0().child(body)))
+      .child(header)
+      .child(div().flex_1().min_h_0().child(body))
   }
 }

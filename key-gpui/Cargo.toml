@@ -9,7 +9,7 @@ key = { path = "../key", default-features = false }
 gpui = { package = "gpui-pre", version = "=0.3.11" }
 gpui_platform = { package = "gpui-pre-platform", version = "=0.3.11", features = ["font-kit"] }
 gpui-component = "0.9.0"
-# Icon SVGs drawn inside gpui-component controls (e.g. the password mask toggle).
+# Lucide icon SVGs for the app and gpui-component controls.
 gpui-kit-assets = "0.9.0"
 # The S3 client in `key` runs on tokio.
 tokio = { version = "1", features = ["rt", "net", "time"] }

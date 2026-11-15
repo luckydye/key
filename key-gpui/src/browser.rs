@@ -1,17 +1,19 @@
 use std::time::Duration;
 
 use gpui::{
-  div, prelude::*, px, App, Context, Entity, FontWeight, ScrollHandle, SharedString,
-  Subscription, Task, Window,
+  div, prelude::*, px, App, ClipboardItem, Context, Entity, FontWeight, ScrollHandle,
+  SharedString, Subscription, Task, Window,
 };
 use gpui_component::{
+  button::{Button, ButtonVariants},
   clipboard::Clipboard,
   h_flex,
   input::{Input, InputEvent, InputState, MoveDown, MoveUp, Textarea, TextareaState},
   progress::ProgressCircle,
   tag::Tag,
-  v_flex, ActiveTheme, Sizable,
+  v_flex, ActiveTheme, Icon, Sizable, WindowExt,
 };
+use gpui_kit_assets::IconName;
 
 use crate::vault::{EntryRow, Vault};
 
@@ -36,7 +38,7 @@ pub struct EntryBrowser {
 
 impl EntryBrowser {
   pub fn new(vault: Entity<Vault>, window: &mut Window, cx: &mut Context<Self>) -> Self {
-    let query = cx.new(|cx| InputState::new(window, cx).placeholder("Type to filter..."));
+    let query = cx.new(|cx| InputState::new(window, cx).placeholder("Search"));
     let user = cx.new(|cx| InputState::new(window, cx));
     let secret = cx.new(|cx| InputState::new(window, cx).masked(true));
     let website = cx.new(|cx| InputState::new(window, cx));
@@ -45,8 +47,10 @@ impl EntryBrowser {
     query.update(cx, |input, cx| input.focus(window, cx));
 
     let subscriptions = vec![cx.subscribe_in(&query, window, |this, _, event, window, cx| {
-      if matches!(event, InputEvent::Change) {
-        this.select(0, window, cx);
+      match event {
+        InputEvent::Change => this.select(0, window, cx),
+        InputEvent::PressEnter { .. } => this.copy_password(window, cx),
+        _ => {}
       }
     })];
 
@@ -108,6 +112,14 @@ impl EntryBrowser {
     cx.notify();
   }
 
+  pub fn copy_password(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    let Some(entry) = self.results(cx).into_iter().nth(self.selected) else {
+      return;
+    };
+    cx.write_to_clipboard(ClipboardItem::new_string(entry.password.to_string()));
+    window.push_notification(format!("Copied password of {}", entry.name), cx);
+  }
+
   pub fn refresh_otp(&mut self, window: &mut Window, cx: &mut Context<Self>) {
     let secret = self.results(cx).get(self.selected).and_then(|e| e.otp_secret.clone());
     let Some(secret) = secret else {
@@ -147,59 +159,113 @@ impl Render for EntryBrowser {
       let previous_group = index.checked_sub(1).map(|previous| &results[previous].group);
       // The header lives inside the group's first row, keeping one list child per entry for scrolling.
       let header = entry.group.clone().filter(|_| previous_group != Some(&entry.group));
+      let active = index == self.selected;
       v_flex()
         .children(header.map(|group| {
-          div()
-            .px_3()
+          h_flex()
+            .gap_1p5()
+            .px_2()
             .pt_3()
             .pb_1()
             .text_xs()
             .font_weight(FontWeight::SEMIBOLD)
             .text_color(theme.muted_foreground)
-            .child(group)
+            .child(Icon::new(IconName::Folder).xsmall())
+            .child(truncated(group))
         }))
         .child(
-          div()
+          v_flex()
             .id(index)
-            .px_3()
-            .py_1()
+            .px_2()
+            .py_1p5()
             .rounded_md()
             .cursor_pointer()
-            .when(index == self.selected, |row| row.bg(theme.list_active))
-            .hover(|row| row.bg(theme.list_hover))
-            .child(entry.name.clone())
-            .child(div().text_xs().text_color(theme.muted_foreground).child(entry.user.clone()))
+            .when(active, |row| row.bg(theme.list_active))
+            .when(!active, |row| row.hover(|row| row.bg(theme.list_hover)))
+            .child(truncated(entry.name.clone()).text_sm().font_weight(FontWeight::MEDIUM))
+            .when(!entry.user.is_empty(), |row| {
+              row.child(truncated(entry.user.clone()).text_xs().text_color(theme.muted_foreground))
+            })
             .on_click(cx.listener(move |this, _, window, cx| this.select(index, window, cx))),
         )
     });
-    let selected = results.get(self.selected);
-    let title = selected.map(|entry| entry.title.clone());
-    let has_otp = selected.is_some_and(|entry| entry.otp_secret.is_some());
-    let tags = selected.map(|entry| entry.tags.clone()).unwrap_or_default();
-    let custom_fields = selected
-      .map(|entry| entry.custom_fields.iter().zip(&self.custom_fields))
-      .into_iter()
-      .flatten()
-      .map(|(field, input)| {
-        v_flex()
-          .gap_2()
-          .child(label(field.name.clone(), cx))
-          .child(Input::new(input).readonly(true).when(field.protected, Input::mask_toggle))
-      });
-    let times = selected.map(|entry| {
-      [("Created", &entry.created), ("Modified", &entry.modified), ("Expires", &entry.expires)]
-        .into_iter()
-        .filter_map(|(name, time)| time.as_ref().map(|time| format!("{name} {time}")))
-        .collect::<Vec<_>>()
-        .join("  ·  ")
+    let empty_list = results.is_empty().then(|| {
+      div().p_4().text_sm().text_center().text_color(theme.muted_foreground).child("No entries")
     });
+
+    let list = v_flex()
+      .w(px(280.))
+      .h_full()
+      .p_2()
+      .gap_2()
+      .border_r_1()
+      .border_color(theme.border)
+      .bg(theme.sidebar)
+      .capture_action(cx.listener(|this, _: &MoveUp, window, cx| {
+        this.select(this.selected.saturating_sub(1), window, cx);
+        cx.stop_propagation();
+      }))
+      .capture_action(cx.listener(|this, _: &MoveDown, window, cx| {
+        this.select(this.selected + 1, window, cx);
+        cx.stop_propagation();
+      }))
+      .child(
+        Input::new(&self.query)
+          .cleanable(true)
+          .prefix(Icon::new(IconName::Search).small().text_color(theme.muted_foreground)),
+      )
+      .child(
+        div()
+          .id("entries")
+          .flex_1()
+          .overflow_y_scroll()
+          .track_scroll(&self.list_scroll)
+          .children(rows)
+          .children(empty_list),
+      )
+      .child(
+        div()
+          .px_2()
+          .text_xs()
+          .text_color(theme.muted_foreground)
+          .child(format!("{} entries  ·  ↵ copies password", results.len())),
+      );
+
+    let details = results.get(self.selected).map(|entry| self.render_details(entry, cx));
+    h_flex().size_full().child(list).child(
+      div().id("details").flex_1().h_full().overflow_y_scroll().children(details),
+    )
+  }
+}
+
+impl EntryBrowser {
+  pub fn render_details(&self, entry: &EntryRow, cx: &mut Context<Self>) -> impl IntoElement {
+    let theme = cx.theme();
+    let copy = |id: &'static str, value: &SharedString| {
+      Clipboard::new(id).value(value.clone()).tooltip("Copy")
+    };
+    let custom_fields = entry.custom_fields.iter().zip(&self.custom_fields).enumerate().map(
+      |(index, (field, input))| {
+        field_row(
+          field.name.clone(),
+          Input::new(input)
+            .readonly(true)
+            .when(field.protected, Input::mask_toggle)
+            .suffix(Clipboard::new(("copy-field", index)).value(field.value.clone()).tooltip("Copy")),
+          cx,
+        )
+      },
+    );
+    let times = [("Created", &entry.created), ("Modified", &entry.modified), ("Expires", &entry.expires)]
+      .into_iter()
+      .filter_map(|(name, time)| time.as_ref().map(|time| format!("{name} {time}")))
+      .collect::<Vec<_>>()
+      .join("  ·  ");
     let otp_suffix = self.otp_code.as_ref().map(|otp| {
       let color = if otp.ttl <= 5 { theme.danger } else { theme.progress_bar };
       h_flex()
         .gap_2()
-        .child(
-          div().text_xs().text_color(theme.muted_foreground).child(format!("{}s", otp.ttl)),
-        )
+        .child(div().text_xs().text_color(theme.muted_foreground).child(format!("{}s", otp.ttl)))
         .child(
           ProgressCircle::new("otp-ttl")
             .small()
@@ -208,70 +274,104 @@ impl Render for EntryBrowser {
         )
         .child(Clipboard::new("otp-copy").value(otp.code.clone()).tooltip("Copy code"))
     });
+    let website = entry.website.clone();
 
-    h_flex()
-      .size_full()
+    v_flex()
+      .w_full()
+      .max_w(px(680.))
+      .p_6()
+      .gap_4()
       .child(
         v_flex()
-          .w(px(260.))
-          .h_full()
-          .p_2()
-          .gap_2()
-          .border_r_1()
-          .border_color(theme.border)
-          .capture_action(cx.listener(|this, _: &MoveUp, window, cx| {
-            this.select(this.selected.saturating_sub(1), window, cx);
-            cx.stop_propagation();
+          .gap_1()
+          .children(entry.group.clone().map(|group| {
+            div().text_xs().text_color(theme.muted_foreground).child(group)
           }))
-          .capture_action(cx.listener(|this, _: &MoveDown, window, cx| {
-            this.select(this.selected + 1, window, cx);
-            cx.stop_propagation();
-          }))
-          .child(Input::new(&self.query).cleanable(true))
-          .child(
-            div()
-              .id("entries")
-              .flex_1()
-              .overflow_y_scroll()
-              .track_scroll(&self.list_scroll)
-              .children(rows),
-          ),
-      )
-      .child(
-        v_flex()
-          .flex_1()
-          .h_full()
-          .id("details")
-          .overflow_y_scroll()
-          .p_4()
-          .gap_2()
-          .children(title.map(|title| div().text_lg().child(title)))
-          .when(!tags.is_empty(), |details| {
-            details.child(
-              h_flex().flex_wrap().gap_1().children(tags.into_iter().map(|t| Tag::new().child(t))),
+          .child(div().text_2xl().font_weight(FontWeight::SEMIBOLD).child(entry.name.clone()))
+          .when(!entry.tags.is_empty(), |header| {
+            header.child(
+              h_flex()
+                .pt_1()
+                .flex_wrap()
+                .gap_1()
+                .children(entry.tags.iter().map(|tag| Tag::secondary().small().child(tag.clone()))),
             )
-          })
-          .child(label("User", cx))
-          .child(Input::new(&self.user).readonly(true))
-          .child(label("Password", cx))
-          .child(Input::new(&self.secret).mask_toggle().readonly(true))
-          .when(has_otp, |details| {
-            details
-              .child(label("OTP", cx))
-              .child(Input::new(&self.otp).readonly(true).when_some(otp_suffix, Input::suffix))
-          })
-          .child(label("Website", cx))
-          .child(Input::new(&self.website).readonly(true))
-          .child(label("Notes", cx))
-          .child(Textarea::new(&self.notes).readonly(true))
-          .children(custom_fields)
-          .children(
-            times.map(|times| div().pt_2().text_xs().text_color(theme.muted_foreground).child(times)),
-          ),
+          }),
       )
+      .when(!entry.user.is_empty(), |details| {
+        details.child(field_row(
+          "Username",
+          Input::new(&self.user).readonly(true).suffix(copy("copy-user", &entry.user)),
+          cx,
+        ))
+      })
+      .when(!entry.password.is_empty(), |details| {
+        details.child(field_row(
+          "Password",
+          Input::new(&self.secret)
+            .mask_toggle()
+            .readonly(true)
+            .suffix(copy("copy-password", &entry.password)),
+          cx,
+        ))
+      })
+      .when(entry.otp_secret.is_some(), |details| {
+        details.child(field_row(
+          "One-time code",
+          Input::new(&self.otp).readonly(true).when_some(otp_suffix, Input::suffix),
+          cx,
+        ))
+      })
+      .when(!entry.website.is_empty(), |details| {
+        details.child(field_row(
+          "Website",
+          Input::new(&self.website).readonly(true).suffix(
+            h_flex()
+              .child(
+                Button::new("open-website")
+                  .ghost()
+                  .xsmall()
+                  .icon(IconName::ExternalLink)
+                  .tooltip("Open in browser")
+                  .on_click(move |_, _, cx| cx.open_url(&website)),
+              )
+              .child(copy("copy-website", &entry.website)),
+          ),
+          cx,
+        ))
+      })
+      .children(custom_fields)
+      .when(!entry.notes.is_empty(), |details| {
+        details.child(field_row("Notes", Textarea::new(&self.notes).readonly(true), cx))
+      })
+      .when(!times.is_empty(), |details| {
+        details.child(
+          div()
+            .pt_3()
+            .border_t_1()
+            .border_color(theme.border)
+            .text_xs()
+            .text_color(theme.muted_foreground)
+            .child(times),
+        )
+      })
   }
 }
 
-fn label(text: impl Into<SharedString>, cx: &App) -> impl IntoElement {
-  div().text_sm().text_color(cx.theme().muted_foreground).child(text.into())
+fn field_row(label: impl Into<SharedString>, input: impl IntoElement, cx: &App) -> impl IntoElement {
+  v_flex()
+    .gap_1p5()
+    .child(
+      div()
+        .text_xs()
+        .font_weight(FontWeight::MEDIUM)
+        .text_color(cx.theme().muted_foreground)
+        .child(label.into()),
+    )
+    .child(input)
+}
+
+/// Single line that ends in an ellipsis when it does not fit.
+fn truncated(text: SharedString) -> gpui::Div {
+  div().w_full().overflow_hidden().whitespace_nowrap().text_ellipsis().child(text)
 }
