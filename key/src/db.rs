@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use keepass::{Database, DatabaseKey};
+use keepass::{config::DatabaseVersion, Database, DatabaseKey};
 use log::{debug, info};
 use minio::s3::{
   args::{BucketExistsArgs, ObjectConditionalReadArgs, PutObjectArgs},
@@ -127,22 +127,21 @@ pub async fn write_database(
   let dburl_parsed = Url::parse(&options.keepassdb)?;
   let schema = dburl_parsed.scheme();
 
+  // keepass can only save KDBX 4.1, so older databases are upgraded on write.
+  db.config.version = DatabaseVersion::KDB4(1);
+
+  // Serialize before touching the target, so a failed save never truncates it.
+  let mut buf = Vec::new();
+  db.save(&mut buf, key.clone())?;
+
   match schema {
     "file" => {
-      let path = dburl_parsed.path();
-      db.save(&mut File::create(path)?, key.clone())?;
+      fs::write(dburl_parsed.path(), &buf)?;
       Ok(())
     }
     "s3" => {
-      let mut buf = Vec::new();
-      let mut cur = Cursor::new(&mut buf);
-      db.save(&mut cur, key.clone())?;
-
-      let size = cur.position();
-
-      cur.set_position(0);
-
-      upload_to_s3(options, &mut cur, size).await?;
+      let size = buf.len() as u64;
+      upload_to_s3(options, &mut Cursor::new(buf), size).await?;
       Ok(())
     }
     _ => Err(anyhow::format_err!("Unsupported schema \"{}\"", schema)),
